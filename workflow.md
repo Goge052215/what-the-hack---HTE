@@ -90,6 +90,14 @@ project-root
 └── package-lock.json
 ```
 
+**File ownership plan (Person 3 leaves at hour 10):**
+- **Person 1 (UI/UX Lead)**: `extension/popup/*`, `extension/dashboard/*`, `extension/options/*`, `extension/assets/*`, `extension/icons/*`
+- **Person 2 (AI/Task Logic)**: `backend/services/llmClient.js`, `backend/services/taskSplitter.js`, `backend/routes/tasks.js`, `backend/routes/analyze.js`, `backend/prompts/*`, `shared/schemas/*`, `shared/types/tasks.d.ts`
+- **Person 3 (Tab Monitoring, leaves at hour 10)**: `extension/content/*`, `extension/background/alarms.js`, `extension/background/messaging.js`, `extension/background/storage.js`
+- **Person 4 (Focus & Habits)**: `backend/services/habitModel.js`, `backend/services/scheduleEngine.js`, `backend/routes/habits.js`, `backend/routes/schedule.js`, `shared/types/habits.d.ts`, `shared/types/schedule.d.ts`, `shared/utils/time.js`
+- **Person 5 (Integration & Polish)**: `extension/background/serviceWorker.js`, `extension/background/schedulerBridge.js`, `backend/app.js`, `backend/config/*`, `backend/storage/*`, `shared/utils/validation.js`, `shared/utils/ids.js`, `scripts/*`, `tests/*`
+- **Handoff at hour 10**: Person 3 hands off ownership of `extension/content/*` and `extension/background/alarms.js` to Person 5
+
 **5-Person 24-Hour Workflow** (tested structure used by similar hackathon teams): Parallel modules + daily stand-ups at hours 0, 8, 16. Total build time ~20 hours + 4 hours polish/demo.
 
 | Phase            | Time   | Person 1 (UI/UX Lead)           | Person 2 (AI/Task Logic)                    | Person 3 (Tab Monitoring)              | Person 4 (Focus & Habits)                    | Person 5 (Integration & Polish)                   |
