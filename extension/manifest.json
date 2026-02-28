@@ -9,8 +9,20 @@
   "background": {
     "service_worker": "background/serviceWorker.js"
   },
+  "content_scripts": [
+    {
+      "matches": ["http://*/*", "https://*/*"],
+      "js": [
+        "content/pageExtractor.js",
+        "content/screenshotCapture.js",
+        "content/contentScript.js"
+      ],
+      "run_at": "document_idle"
+    }
+  ],
   "permissions": ["storage", "cookies", "activeTab", "tabs", "alarms", "notifications", "identity"],
   "host_permissions": [
+    "<all_urls>",
     "http://localhost:5174/*",
     "http://127.0.0.1:5174/*",
     "https://www.googleapis.com/*"

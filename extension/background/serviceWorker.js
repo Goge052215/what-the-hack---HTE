@@ -1,3 +1,5 @@
+importScripts("storage.js", "messaging.js", "alarms.js");
+
 const defaultApiBaseUrl = "http://localhost:5174";
 const notificationIcon =
   "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='128' height='128'><rect width='128' height='128' fill='%230f172a'/><text x='64' y='78' font-size='64' text-anchor='middle' fill='white'>F</text></svg>";
@@ -227,7 +229,7 @@ chrome.idle.onStateChanged.addListener((state) => {
       if (!schedule?.blocks?.length) return;
       const msg = getCurrentPhaseMessage(schedule.blocks);
       if (msg.type === "study") {
-        notify("You’ve relaxed too long", "Back to work for this focus block.");
+        notify("You've relaxed too long", "Back to work for this focus block.");
       }
     });
   }
@@ -398,3 +400,6 @@ chrome.notifications.onButtonClicked.addListener((notificationId, buttonIndex) =
     }
   }
 });
+
+FocusPet.Messaging.init();
+FocusPet.Alarms.init();
