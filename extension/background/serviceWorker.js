@@ -1,3 +1,5 @@
+importScripts("storage.js", "messaging.js", "alarms.js");
+
 const defaultApiBaseUrl = "http://localhost:5174";
 
 chrome.runtime.onInstalled.addListener(() => {
@@ -27,3 +29,6 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   }
   return false;
 });
+
+FocusPet.Messaging.init();
+FocusPet.Alarms.init();
