@@ -43,6 +43,18 @@ const elements = {
   settingsPanel: document.getElementById("settingsPanel"),
   taskListPanel: document.getElementById("taskListPanel"),
   addTaskPanel: document.getElementById("addTaskPanel"),
+  // Settings navigation
+  dashboardSettingBtn: document.getElementById("dashboardSettingBtn"),
+  notificationsSettingBtn: document.getElementById("notificationsSettingBtn"),
+  styleSettingBtn: document.getElementById("styleSettingBtn"),
+  tabsSettingBtn: document.getElementById("tabsSettingBtn"),
+  apiSettingBtn: document.getElementById("apiSettingBtn"),
+  // Settings sections
+  dashboardSection: document.getElementById("dashboardSection"),
+  notificationsSection: document.getElementById("notificationsSection"),
+  styleSection: document.getElementById("styleSection"),
+  tabsSection: document.getElementById("tabsSection"),
+  apiSection: document.getElementById("apiSection"),
 };
 
 let tasks = [];
@@ -622,7 +634,7 @@ const saveNotificationSettings = () => {
     breakReminders: elements.breakReminders.checked,
     deadlineReminders: elements.deadlineReminders.checked,
     taskNudges: elements.taskNudges.checked,
-    focusDuration: parseInt(elements.focusDuration.value) || 45
+    focusDuration: parseInt(elements.focusDuration.value) || 45,
   };
   
   chrome.storage.local.set({ notificationSettings });
@@ -630,6 +642,58 @@ const saveNotificationSettings = () => {
   // Request notification permission if enabled
   if (notificationSettings.enabled) {
     chrome.permissions.request({ permissions: ['notifications'] });
+  }
+};
+
+const switchSettingsSection = (sectionName) => {
+  // Hide all sections
+  const sections = [
+    elements.dashboardSection,
+    elements.notificationsSection,
+    elements.styleSection,
+    elements.tabsSection,
+    elements.apiSection
+  ];
+  
+  sections.forEach(section => {
+    if (section) section.classList.remove('active');
+  });
+  
+  // Remove active class from all buttons
+  const buttons = [
+    elements.dashboardSettingBtn,
+    elements.notificationsSettingBtn,
+    elements.styleSettingBtn,
+    elements.tabsSettingBtn,
+    elements.apiSettingBtn
+  ];
+  
+  buttons.forEach(btn => {
+    if (btn) btn.classList.remove('active');
+  });
+  
+  // Show selected section and activate button
+  switch(sectionName) {
+    case 'dashboard':
+      elements.dashboardSection?.classList.add('active');
+      elements.dashboardSettingBtn?.classList.add('active');
+      break;
+    case 'notifications':
+      elements.notificationsSection?.classList.add('active');
+      elements.notificationsSettingBtn?.classList.add('active');
+      break;
+    case 'style':
+      elements.styleSection?.classList.add('active');
+      elements.styleSettingBtn?.classList.add('active');
+      break;
+    case 'tabs':
+      elements.tabsSection?.classList.add('active');
+      elements.tabsSettingBtn?.classList.add('active');
+      break;
+    case 'api':
+      elements.apiSection?.classList.add('active');
+      elements.apiSettingBtn?.classList.add('active');
+      break;
   }
 };
 
@@ -724,6 +788,13 @@ elements.typeExam.addEventListener("click", () => {
 elements.typeEvent.addEventListener("click", () => {
   setTaskType("event");
 });
+
+// Settings navigation event listeners
+elements.dashboardSettingBtn?.addEventListener("click", () => switchSettingsSection('dashboard'));
+elements.notificationsSettingBtn?.addEventListener("click", () => switchSettingsSection('notifications'));
+elements.styleSettingBtn?.addEventListener("click", () => switchSettingsSection('style'));
+elements.tabsSettingBtn?.addEventListener("click", () => switchSettingsSection('tabs'));
+elements.apiSettingBtn?.addEventListener("click", () => switchSettingsSection('api'));
 
 // Notification settings event listeners
 elements.enableNotifications.addEventListener("change", saveNotificationSettings);

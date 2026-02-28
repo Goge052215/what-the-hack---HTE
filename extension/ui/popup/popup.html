@@ -76,65 +76,80 @@
       <div id="settingsPanel" class="panel" style="display: none;">
         <h3>Settings</h3>
         
-        <button id="openDashboardBtn" class="dashboard-btn">📊 Open Dashboard</button>
-        
-        <div class="divider"></div>
-        
-        <label>Theme</label>
-        <div class="theme-selector">
-          <button id="lightThemeBtn" class="theme-option">☀️ Light</button>
-          <button id="darkThemeBtn" class="theme-option">🌙 Dark</button>
-          <button id="autoThemeBtn" class="theme-option">🌗 Auto</button>
+        <!-- Settings Navigation Buttons -->
+        <div class="settings-nav">
+          <button id="dashboardSettingBtn" class="setting-nav-btn active">📊 Dashboard</button>
+          <button id="notificationsSettingBtn" class="setting-nav-btn">🔔 Notifications</button>
+          <button id="styleSettingBtn" class="setting-nav-btn">🎨 Style</button>
+          <button id="tabsSettingBtn" class="setting-nav-btn">📑 Tabs</button>
+          <button id="apiSettingBtn" class="setting-nav-btn">🔌 API</button>
         </div>
         
-        <div class="divider"></div>
+        <!-- Dashboard Section -->
+        <div id="dashboardSection" class="settings-section active">
+          <button id="openDashboardBtn" class="dashboard-btn">📊 Open Dashboard</button>
+        </div>
         
-        <label for="apiBaseUrl">API Base URL</label>
-        <input id="apiBaseUrl" type="text" placeholder="http://localhost:5174" />
-        <button id="saveApiBaseUrl">Save</button>
-        
-        <div class="divider"></div>
-        
-        <h3>Notifications</h3>
-        <div class="notification-settings">
-          <label class="checkbox-label">
-            <input id="enableNotifications" type="checkbox" checked />
-            <span>🔔 Enable Notifications</span>
-          </label>
-          
-          <label class="checkbox-label">
-            <input id="distractionAlerts" type="checkbox" checked />
-            <span>🤔 Distraction Alerts</span>
-          </label>
-          
-          <label class="checkbox-label">
-            <input id="breakReminders" type="checkbox" checked />
-            <span>⏰ Break Reminders</span>
-          </label>
-          
-          <label class="checkbox-label">
-            <input id="deadlineReminders" type="checkbox" checked />
-            <span>⚠️ Deadline Reminders</span>
-          </label>
-          
-          <label class="checkbox-label">
-            <input id="taskNudges" type="checkbox" checked />
-            <span>💡 Task Nudges</span>
-          </label>
-          
-          <div class="setting-row">
-            <label for="focusDuration">Focus Duration (minutes)</label>
-            <input id="focusDuration" type="number" min="15" max="120" value="45" />
+        <!-- Notifications Section -->
+        <div id="notificationsSection" class="settings-section">
+          <div class="notification-settings">
+            <label class="checkbox-label">
+              <input id="enableNotifications" type="checkbox" checked />
+              <span>🔔 Enable Notifications</span>
+            </label>
+            
+            <label class="checkbox-label">
+              <input id="distractionAlerts" type="checkbox" checked />
+              <span>🤔 Distraction Alerts</span>
+            </label>
+            
+            <label class="checkbox-label">
+              <input id="breakReminders" type="checkbox" checked />
+              <span>⏰ Break Reminders</span>
+            </label>
+            
+            <label class="checkbox-label">
+              <input id="deadlineReminders" type="checkbox" checked />
+              <span>⚠️ Deadline Reminders</span>
+            </label>
+            
+            <label class="checkbox-label">
+              <input id="taskNudges" type="checkbox" checked />
+              <span>💡 Task Nudges</span>
+            </label>
+            
+            <div class="setting-row">
+              <label for="focusDuration">Focus Duration (minutes)</label>
+              <input id="focusDuration" type="number" min="15" max="120" value="45" />
+            </div>
           </div>
         </div>
         
-        <div class="divider"></div>
+        <!-- Style Section -->
+        <div id="styleSection" class="settings-section">
+          <label>Theme</label>
+          <div class="theme-selector">
+            <button id="lightThemeBtn" class="theme-option">☀️ Light</button>
+            <button id="darkThemeBtn" class="theme-option">🌙 Dark</button>
+            <button id="autoThemeBtn" class="theme-option">🌗 Auto</button>
+          </div>
+        </div>
         
-        <h3>Tab Analysis</h3>
-        <p id="analysisStatus">Waiting for analysis...</p>
-        <p id="analysisScore">Focus score: --</p>
-        <p id="analysisMeta">Tabs analyzed: --</p>
-        <ul id="analysisList" class="compact-list"></ul>
+        <!-- Tabs Section -->
+        <div id="tabsSection" class="settings-section">
+          <h4>Tab Analysis</h4>
+          <p id="analysisStatus">Waiting for analysis...</p>
+          <p id="analysisScore">Focus score: --</p>
+          <p id="analysisMeta">Tabs analyzed: --</p>
+          <ul id="analysisList" class="compact-list"></ul>
+        </div>
+        
+        <!-- API Section -->
+        <div id="apiSection" class="settings-section">
+          <label for="apiBaseUrl">API Base URL</label>
+          <input id="apiBaseUrl" type="text" placeholder="http://localhost:5174" />
+          <button id="saveApiBaseUrl">Save</button>
+        </div>
       </div>
 
       <!-- Task List Panel (hidden by default) -->
