@@ -6,6 +6,30 @@ const { startOfDay, getHour } = require("../../shared/utils/time");
 
 const MAX_GAP_MIN = 5;
 const DAY_PARAM_REGEX = /^\d{4}-\d{2}-\d{2}$/;
+const SUGGESTION_TIMEOUT_MS = 8000;
+
+const withTimeout = (promise, ms) =>
+  new Promise((resolve) => {
+    let settled = false;
+    const timer = setTimeout(() => {
+      if (settled) return;
+      settled = true;
+      resolve({ ok: false, error: "timeout" });
+    }, ms);
+    Promise.resolve(promise)
+      .then((result) => {
+        if (settled) return;
+        settled = true;
+        clearTimeout(timer);
+        resolve(result);
+      })
+      .catch(() => {
+        if (settled) return;
+        settled = true;
+        clearTimeout(timer);
+        resolve({ ok: false, error: "request_failed" });
+      });
+  });
 
 const getLatestGoal = (userId, bodyGoal) => {
   if (isNonEmptyString(bodyGoal)) return bodyGoal.trim();
@@ -344,7 +368,10 @@ const handleAnalyze = async (req, res, ctx) => {
       type: task?.type,
       deadline: task?.deadline,
     });
-    const aiResponse = await createScheduleSuggestions(prompt);
+    const aiResponse = await withTimeout(
+      createScheduleSuggestions(prompt),
+      SUGGESTION_TIMEOUT_MS
+    );
     let suggestions = null;
     if (aiResponse.ok && aiResponse.content) {
       try {
