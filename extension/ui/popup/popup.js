@@ -641,125 +641,67 @@ const testAllNotifications = async () => {
   const iconUrl = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==';
   
   try {
-    // Test from background worker first
-    console.log('Testing notification from background worker...');
-    chrome.runtime.sendMessage({ type: 'testNotification' }, (response) => {
-      console.log('Background test response:', response);
-    });
+    alert('Sending all 6 test notifications now! Check your notifications.');
     
-    // Wait a moment, then test from popup
-    setTimeout(() => {
-      console.log('Creating test notification from popup NOW...');
-      chrome.notifications.create('test-simple', {
-        type: 'basic',
-        iconUrl: iconUrl,
-        title: '✅ Popup Test',
-        message: 'This notification is from the popup!',
-        priority: 2,
-        requireInteraction: false
-      }, (notificationId) => {
-        if (chrome.runtime.lastError) {
-          console.error('Error creating notification:', chrome.runtime.lastError);
-          alert('❌ Error: ' + chrome.runtime.lastError.message);
-        } else {
-          console.log('✅ Test notification created:', notificationId);
-          alert('✅ Sent 2 test notifications!\n\n1. From background worker\n2. From popup\n\nCheck:\n- Top-right corner of screen\n- Chrome notification icon in menu bar\n- System Notification Center');
-        }
-      });
-    }, 1000);
-    
-    // Wait a bit, then show the full suite
-    setTimeout(() => {
-      alert('Now sending 6 more notifications over 10 seconds...');
-    }, 2000);
+    // Create all notifications immediately (no delays)
     
     // Test 1: Distraction Alert
-    setTimeout(() => {
-      console.log('Creating distraction notification...');
-      chrome.notifications.create('test-distraction', {
-        type: 'basic',
-        iconUrl: iconUrl,
-        title: '👋 Hey! Get back to your task',
-        message: 'You\'ve been switching tabs a lot. Time to refocus on what matters!',
-        priority: 2
-      }, (notificationId) => {
-        console.log('Distraction notification created:', notificationId);
-      });
-    }, 3000);
+    chrome.notifications.create('test-distraction', {
+      type: 'basic',
+      iconUrl: iconUrl,
+      title: '👋 Hey! Get back to your task',
+      message: 'You\'ve been switching tabs a lot. Time to refocus on what matters!',
+      priority: 2
+    });
     
     // Test 2: Break Reminder
-    setTimeout(() => {
-      console.log('Creating break reminder notification...');
-      chrome.notifications.create('test-break', {
-        type: 'basic',
-        iconUrl: iconUrl,
-        title: '☕ Take a break!',
-        message: 'You\'ve been working hard for 45 minutes. Step away for 5 minutes to recharge your brain!',
-        buttons: [
-          { title: 'Take Break' },
-          { title: 'Keep Working' }
-        ],
-        priority: 2
-      }, (notificationId) => {
-        console.log('Break notification created:', notificationId);
-      });
-    }, 5000);
+    chrome.notifications.create('test-break', {
+      type: 'basic',
+      iconUrl: iconUrl,
+      title: '☕ Take a break!',
+      message: 'You\'ve been working hard for 45 minutes. Step away for 5 minutes to recharge your brain!',
+      buttons: [
+        { title: 'Take Break' },
+        { title: 'Keep Working' }
+      ],
+      priority: 2
+    });
     
     // Test 3: Deadline Warning (24h)
-    setTimeout(() => {
-      console.log('Creating 24h deadline notification...');
-      chrome.notifications.create('test-deadline-24h', {
-        type: 'basic',
-        iconUrl: iconUrl,
-        title: '📅 Don\'t forget!',
-        message: 'Your Essay Assignment is due tomorrow. Make sure you\'re on track!',
-        priority: 2
-      }, (notificationId) => {
-        console.log('24h deadline notification created:', notificationId);
-      });
-    }, 7000);
+    chrome.notifications.create('test-deadline-24h', {
+      type: 'basic',
+      iconUrl: iconUrl,
+      title: '📅 Don\'t forget!',
+      message: 'Your Essay Assignment is due tomorrow. Make sure you\'re on track!',
+      priority: 2
+    });
     
     // Test 4: Deadline Warning (1h)
-    setTimeout(() => {
-      console.log('Creating 1h deadline notification...');
-      chrome.notifications.create('test-deadline-1h', {
-        type: 'basic',
-        iconUrl: iconUrl,
-        title: '⏰ One hour left!',
-        message: 'Math Exam is due in 1 hour. Time to wrap up and submit!',
-        priority: 2
-      }, (notificationId) => {
-        console.log('1h deadline notification created:', notificationId);
-      });
-    }, 9000);
+    chrome.notifications.create('test-deadline-1h', {
+      type: 'basic',
+      iconUrl: iconUrl,
+      title: '⏰ One hour left!',
+      message: 'Math Exam is due in 1 hour. Time to wrap up and submit!',
+      priority: 2
+    });
     
     // Test 5: Deadline Imminent (15m)
-    setTimeout(() => {
-      console.log('Creating 15m deadline notification...');
-      chrome.notifications.create('test-deadline-15m', {
-        type: 'basic',
-        iconUrl: iconUrl,
-        title: '🚨 Final warning!',
-        message: 'Project Submission is due in 15 minutes! Submit now!',
-        priority: 2
-      }, (notificationId) => {
-        console.log('15m deadline notification created:', notificationId);
-      });
-    }, 11000);
+    chrome.notifications.create('test-deadline-15m', {
+      type: 'basic',
+      iconUrl: iconUrl,
+      title: '🚨 Final warning!',
+      message: 'Project Submission is due in 15 minutes! Submit now!',
+      priority: 2
+    });
     
     // Test 6: Task Nudge
-    setTimeout(() => {
-      console.log('Creating task nudge notification...');
-      chrome.notifications.create('test-nudge', {
-        type: 'basic',
-        iconUrl: iconUrl,
-        title: '💡 Quick tip!',
-        message: 'You just watched a lecture video. Take 2 minutes to write down the key points while they\'re fresh!',
-        priority: 2
-      }, (notificationId) => {
-        console.log('Task nudge notification created:', notificationId);
-      });
-    }, 13000);
+    chrome.notifications.create('test-nudge', {
+      type: 'basic',
+      iconUrl: iconUrl,
+      title: '💡 Quick tip!',
+      message: 'You just watched a lecture video. Take 2 minutes to write down the key points while they\'re fresh!',
+      priority: 2
+    });
     
   } catch (error) {
     console.error('Error testing notifications:', error);
