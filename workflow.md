@@ -12,6 +12,84 @@ Your concept stands out as a unique “AI Adaptive Focus Tutor” extension: use
 
 None combine task splitting + deep habit-learned scheduling + MiniMax-level multimodal AI, so your version would be original.
 
+**Proposed codebase structure (file tree only, no code):**
+```
+project-root
+├── extension
+│   ├── manifest.json
+│   ├── background
+│   │   ├── serviceWorker.js
+│   │   ├── alarms.js
+│   │   ├── storage.js
+│   │   ├── messaging.js
+│   │   └── schedulerBridge.js
+│   ├── content
+│   │   ├── contentScript.js
+│   │   ├── pageExtractor.js
+│   │   └── screenshotCapture.js
+│   ├── popup
+│   │   ├── popup.html
+│   │   ├── popup.css
+│   │   └── popup.js
+│   ├── dashboard
+│   │   ├── dashboard.html
+│   │   ├── dashboard.css
+│   │   └── dashboard.js
+│   ├── options
+│   │   ├── options.html
+│   │   ├── options.css
+│   │   └── options.js
+│   ├── icons
+│   └── assets
+├── backend
+│   ├── app.js
+│   ├── routes
+│   │   ├── tasks.js
+│   │   ├── habits.js
+│   │   ├── schedule.js
+│   │   └── analyze.js
+│   ├── services
+│   │   ├── llmClient.js
+│   │   ├── taskSplitter.js
+│   │   ├── habitModel.js
+│   │   ├── scheduleEngine.js
+│   │   └── relevanceScorer.js
+│   ├── prompts
+│   │   ├── taskSplit.txt
+│   │   ├── habitSummary.txt
+│   │   └── schedulePlan.txt
+│   ├── middlewares
+│   │   ├── auth.js
+│   │   └── rateLimit.js
+│   ├── storage
+│   │   ├── index.js
+│   │   └── models.js
+│   └── config
+│       ├── env.js
+│       └── constants.js
+├── shared
+│   ├── types
+│   │   ├── tasks.d.ts
+│   │   ├── habits.d.ts
+│   │   └── schedule.d.ts
+│   ├── schemas
+│   │   ├── taskSplit.json
+│   │   ├── habitSummary.json
+│   │   └── schedulePlan.json
+│   └── utils
+│       ├── time.js
+│       ├── validation.js
+│       └── ids.js
+├── scripts
+│   ├── build-extension.js
+│   └── dev-backend.js
+├── tests
+│   ├── backend
+│   └── extension
+├── package.json
+└── package-lock.json
+```
+
 **5-Person 24-Hour Workflow** (tested structure used by similar hackathon teams): Parallel modules + daily stand-ups at hours 0, 8, 16. Total build time ~20 hours + 4 hours polish/demo.
 
 | Phase            | Time   | Person 1 (UI/UX Lead)           | Person 2 (AI/Task Logic)                    | Person 3 (Tab Monitoring)              | Person 4 (Focus & Habits)                    | Person 5 (Integration & Polish)                   |
