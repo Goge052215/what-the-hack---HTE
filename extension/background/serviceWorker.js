@@ -216,7 +216,6 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   return false;
 });
 
-<<<<<<< HEAD
 chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
   if (changeInfo.status !== "complete") return;
   if (!tab?.active) return;
@@ -230,7 +229,7 @@ chrome.idle.onStateChanged.addListener((state) => {
       if (!schedule?.blocks?.length) return;
       const msg = getCurrentPhaseMessage(schedule.blocks);
       if (msg.type === "study") {
-        notify("You’ve relaxed too long", "Back to work for this focus block.");
+        notify("You've relaxed too long", "Back to work for this focus block.");
       }
     });
   }
@@ -401,7 +400,7 @@ chrome.notifications.onButtonClicked.addListener((notificationId, buttonIndex) =
     }
   }
 });
-=======
+
+// Initialize FocusPet modules (Person 3's tab monitoring system)
 FocusPet.Messaging.init();
 FocusPet.Alarms.init();
->>>>>>> feature/tab-monitoring

@@ -9,20 +9,6 @@
   "background": {
     "service_worker": "background/serviceWorker.js"
   },
-<<<<<<< HEAD
-  "permissions": ["storage", "cookies", "activeTab", "tabs", "alarms", "notifications", "identity"],
-  "host_permissions": [
-    "http://localhost:5174/*",
-    "http://127.0.0.1:5174/*",
-    "https://www.googleapis.com/*"
-  ],
-  "oauth2": {
-    "client_id": "CHROME_WEB_STORE_WILL_PROVIDE_THIS",
-    "scopes": [
-      "https://www.googleapis.com/auth/calendar.events"
-    ]
-  },
-=======
   "content_scripts": [
     {
       "matches": ["http://*/*", "https://*/*"],
@@ -34,9 +20,19 @@
       "run_at": "document_idle"
     }
   ],
-  "permissions": ["storage", "cookies", "activeTab", "tabs", "alarms", "notifications"],
-  "host_permissions": ["<all_urls>", "http://localhost:5174/*", "http://127.0.0.1:5174/*"],
->>>>>>> feature/tab-monitoring
+  "permissions": ["storage", "cookies", "activeTab", "tabs", "alarms", "notifications", "identity"],
+  "host_permissions": [
+    "<all_urls>",
+    "http://localhost:5174/*",
+    "http://127.0.0.1:5174/*",
+    "https://www.googleapis.com/*"
+  ],
+  "oauth2": {
+    "client_id": "CHROME_WEB_STORE_WILL_PROVIDE_THIS",
+    "scopes": [
+      "https://www.googleapis.com/auth/calendar.events"
+    ]
+  },
   "content_security_policy": {
     "extension_pages": "script-src 'self'; object-src 'self'"
   }
