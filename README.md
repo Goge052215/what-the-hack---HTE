@@ -23,11 +23,25 @@ project-root
 │   │   ├── alarms.js
 │   │   ├── storage.js
 │   │   ├── messaging.js
-│   │   └── schedulerBridge.js
+│   │   ├── schedulerBridge.js
+│   │   └── cookies
+│   │       ├── cookieStore.js
+│   │       └── sessionSync.js
 │   ├── content
 │   │   ├── contentScript.js
 │   │   ├── pageExtractor.js
 │   │   └── screenshotCapture.js
+│   ├── ui
+│   │   ├── router
+│   │   │   ├── routes.js
+│   │   │   └── navigation.js
+│   │   ├── api
+│   │   │   ├── client.js
+│   │   │   ├── requests.js
+│   │   │   └── responses.js
+│   │   └── auth
+│   │       ├── authGuard.js
+│   │       └── permissions.js
 │   ├── popup
 │   │   ├── popup.html
 │   │   ├── popup.css
@@ -48,19 +62,21 @@ project-root
 │   │   ├── tasks.js
 │   │   ├── habits.js
 │   │   ├── schedule.js
-│   │   └── analyze.js
+│   │   ├── analyze.js
+│   │   └── auth.js
 │   ├── services
 │   │   ├── llmClient.js
 │   │   ├── taskSplitter.js
 │   │   ├── habitModel.js
 │   │   ├── scheduleEngine.js
 │   │   └── relevanceScorer.js
-│   ├── prompts
-│   │   ├── taskSplit.txt
-│   │   ├── habitSummary.txt
-│   │   └── schedulePlan.txt
 │   ├── middlewares
 │   │   ├── auth.js
+│   │   ├── authorize.js
+│   │   └── cors.js
+│   ├── security
+│   │   ├── cspHeaders.js
+│   │   ├── sessionCookies.js
 │   │   └── rateLimit.js
 │   ├── storage
 │   │   ├── index.js
@@ -72,11 +88,14 @@ project-root
 │   ├── types
 │   │   ├── tasks.d.ts
 │   │   ├── habits.d.ts
-│   │   └── schedule.d.ts
+│   │   ├── schedule.d.ts
+│   │   └── auth.d.ts
 │   ├── schemas
 │   │   ├── taskSplit.json
 │   │   ├── habitSummary.json
-│   │   └── schedulePlan.json
+│   │   ├── schedulePlan.json
+│   │   ├── apiRequest.json
+│   │   └── apiResponse.json
 │   └── utils
 │       ├── time.js
 │       ├── validation.js
