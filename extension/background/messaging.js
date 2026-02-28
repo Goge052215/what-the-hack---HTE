@@ -102,8 +102,21 @@ FocusPet.Messaging = {
           session.active = false;
           session.endTime = Date.now();
           return FocusPet.Storage.setCurrentSession(session).then(function () {
-            FocusPet.Alarms.cancelAllAlarms();
-            return { session: session };
+            return FocusPet.Storage.getSettings().then(function (settings) {
+              if (settings.enableNotifications) {
+                chrome.notifications.create("session_end_" + Date.now(), {
+                  type: "basic",
+                  iconUrl: "icons/icon48.png",
+                  title: "FocusPet - Session Ended",
+                  message: session.taskName
+                    ? 'Session ended for "' + session.taskName + '".'
+                    : "Focus session ended.",
+                  priority: 1
+                });
+              }
+              FocusPet.Alarms.cancelAllAlarms();
+              return { session: session };
+            });
           });
         }
         FocusPet.Alarms.cancelAllAlarms();

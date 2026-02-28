@@ -993,10 +993,26 @@ const fetchAiSuggestions = async (task, force = false) => {
       updateCurrentTask();
       setAiSuggestionStatus("Suggestions ready.");
     } else {
-      setAiSuggestionStatus("Unable to get suggestions.");
+      task.aiSuggestionSlots = buildLocalSuggestionSlots({
+        type: task?.type,
+        deadline: task?.deadline,
+      });
+      task.aiSuggestionSource = "local";
+      saveTasks();
+      renderTasks();
+      updateCurrentTask();
+      setAiSuggestionStatus("Local suggestions ready.");
     }
   } catch (error) {
-    setAiSuggestionStatus("Unable to get suggestions.");
+    task.aiSuggestionSlots = buildLocalSuggestionSlots({
+      type: task?.type,
+      deadline: task?.deadline,
+    });
+    task.aiSuggestionSource = "local";
+    saveTasks();
+    renderTasks();
+    updateCurrentTask();
+    setAiSuggestionStatus("Local suggestions ready.");
   }
   if (elements.aiSuggestBtn) {
     elements.aiSuggestBtn.disabled = false;
@@ -1595,17 +1611,197 @@ const renderTabList = (entries) => {
 };
 
 const revisionDojoTopics = [
-  { topic: "Biology", keywords: ["biology", "bio"] },
-  { topic: "Chemistry", keywords: ["chemistry", "chem"] },
-  { topic: "Physics", keywords: ["physics"] },
-  { topic: "Mathematics", keywords: ["math", "mathematics", "calculus", "algebra", "statistics"] },
-  { topic: "Economics", keywords: ["economics", "econ"] },
-  { topic: "Business", keywords: ["business", "management"] },
-  { topic: "History", keywords: ["history"] },
-  { topic: "English", keywords: ["english", "literature", "lang & lit", "language and literature"] },
-  { topic: "Psychology", keywords: ["psychology", "psych"] },
-  { topic: "Computer Science", keywords: ["computer science", "cs", "programming", "coding"] },
-  { topic: "Geography", keywords: ["geography"] },
+  {
+    topic: "Biology",
+    keywords: [
+      "biology", "bio", "cell", "cells", "gene", "genes", "genetics", "dna", "rna", "protein",
+      "proteins", "enzyme", "enzymes", "evolution", "natural selection", "ecology", "ecosystem",
+      "photosynthesis", "respiration", "organism", "organisms", "species", "mitosis", "meiosis",
+      "anatomy", "physiology", "human body", "nervous system", "immune", "biodiversity"
+    ]
+  },
+  {
+    topic: "Chemistry",
+    keywords: [
+      "chemistry", "chem", "atom", "atoms", "molecule", "molecules", "bond", "bonds", "ionic",
+      "covalent", "reaction", "reactions", "equation", "equations", "periodic table", "acid",
+      "base", "ph", "organic", "organic chemistry", "stoichiometry", "solution", "solubility",
+      "redox", "oxidation", "reduction", "kinetics", "equilibrium", "thermochemistry"
+    ]
+  },
+  {
+    topic: "Physics",
+    keywords: [
+      "physics", "force", "forces", "motion", "velocity", "acceleration", "energy", "power",
+      "work", "momentum", "gravity", "mass", "weight", "electric", "electricity", "voltage",
+      "current", "resistance", "circuit", "circuits", "magnet", "magnetic", "wave", "waves",
+      "optics", "light", "sound", "quantum", "nuclear", "particle"
+    ]
+  },
+  {
+    topic: "Mathematics",
+    keywords: [
+      "math", "mathematics", "algebra", "geometry", "calculus", "derivative", "integral",
+      "limits", "trigonometry", "stats", "statistics", "probability", "function", "functions",
+      "graph", "graphs", "matrix", "matrices", "vector", "vectors", "sequence", "series",
+      "equation", "inequality", "logarithm", "exponent", "proof", "model"
+    ]
+  },
+  {
+    topic: "Economics",
+    keywords: [
+      "economics", "econ", "microeconomics", "macroeconomics", "supply", "demand", "market",
+      "markets", "elasticity", "inflation", "gdp", "growth", "interest", "unemployment",
+      "trade", "exchange rate", "fiscal", "monetary", "policy", "opportunity cost",
+      "scarcity", "budget", "productivity", "externality"
+    ]
+  },
+  {
+    topic: "Business",
+    keywords: [
+      "business", "management", "marketing", "finance", "accounting", "strategy", "operations",
+      "hr", "human resources", "entrepreneurship", "startup", "profit", "revenue", "cost",
+      "break even", "stakeholder", "organization", "leadership", "planning", "cash flow",
+      "balance sheet", "income statement", "supply chain", "brand"
+    ]
+  },
+  {
+    topic: "History",
+    keywords: [
+      "history", "historical", "revolution", "war", "civil war", "cold war", "empire",
+      "colonial", "imperial", "treaty", "independence", "democracy", "dictatorship",
+      "civilization", "society", "movement", "timeline", "source", "historiography",
+      "primary source", "secondary source"
+    ]
+  },
+  {
+    topic: "English",
+    keywords: [
+      "english", "language", "literature", "lang lit", "language and literature", "essay",
+      "analysis", "theme", "character", "plot", "poetry", "novel", "drama", "narrative",
+      "argument", "thesis", "evidence", "rhetoric", "style", "tone", "summary", "comprehension"
+    ]
+  },
+  {
+    topic: "Psychology",
+    keywords: [
+      "psychology", "psych", "behavior", "behaviour", "brain", "cognition", "memory",
+      "learning", "emotion", "stress", "motivation", "development", "personality", "social",
+      "experiment", "study", "research", "mental health", "therapy", "neuroscience"
+    ]
+  },
+  {
+    topic: "Computer Science",
+    keywords: [
+      "computer science", "cs", "programming", "coding", "algorithm", "algorithms", "data",
+      "data structure", "software", "hardware", "network", "networks", "database", "databases",
+      "python", "java", "javascript", "html", "css", "debug", "compile", "runtime", "api"
+    ]
+  },
+  {
+    topic: "Geography",
+    keywords: [
+      "geography", "map", "maps", "climate", "weather", "population", "migration", "urban",
+      "rural", "environment", "sustainability", "development", "resource", "resources",
+      "earth", "river", "coast", "plate", "tectonic", "hazard", "globalization"
+    ]
+  },
+  {
+    topic: "Environmental Systems",
+    keywords: [
+      "environmental", "environment", "ecosystem", "ecology", "sustainability", "pollution",
+      "climate change", "carbon", "energy", "renewable", "conservation", "biodiversity",
+      "footprint", "waste", "water", "air quality"
+    ]
+  },
+  {
+    topic: "Global Politics",
+    keywords: [
+      "politics", "global politics", "government", "state", "power", "rights", "justice",
+      "conflict", "peace", "security", "sovereignty", "law", "policy", "international",
+      "united nations", "ngo", "refugee", "diplomacy"
+    ]
+  },
+  {
+    topic: "Philosophy",
+    keywords: [
+      "philosophy", "ethics", "logic", "reason", "argument", "knowledge", "epistemology",
+      "metaphysics", "morality", "justice", "free will", "truth", "theory", "philosopher"
+    ]
+  },
+  {
+    topic: "TOK",
+    keywords: [
+      "tok", "theory of knowledge", "aok", "wok", "knowledge question", "knowledge claim",
+      "perspective", "bias", "evidence", "justification", "truth", "certainty", "reason",
+      "language", "faith", "intuition"
+    ]
+  },
+  {
+    topic: "ESS",
+    keywords: [
+      "ess", "environmental systems", "environmental systems and societies", "systems",
+      "societies", "pollution", "sustainability", "ecosystem", "carbon cycle", "biodiversity"
+    ]
+  },
+  {
+    topic: "Design Technology",
+    keywords: [
+      "design technology", "design", "prototype", "prototyping", "innovation", "model",
+      "modelling", "product", "specification", "criteria", "manufacture", "materials",
+      "ergonomics", "sustainability", "sketch", "cad"
+    ]
+  },
+  {
+    topic: "Digital Society",
+    keywords: [
+      "digital society", "algorithm", "data", "privacy", "security", "ethics", "ai",
+      "artificial intelligence", "automation", "platform", "social media", "bias", "technology"
+    ]
+  },
+  {
+    topic: "SEHS",
+    keywords: [
+      "sehs", "sport", "exercise", "health science", "fitness", "training", "anatomy",
+      "physiology", "nutrition", "biomechanics", "performance", "recovery"
+    ]
+  },
+  {
+    topic: "Languages",
+    keywords: [
+      "language acquisition", "french", "spanish", "german", "chinese", "mandarin", "japanese",
+      "korean", "arabic", "italian", "vocabulary", "grammar", "listening", "speaking",
+      "reading", "writing", "translation"
+    ]
+  },
+  {
+    topic: "Visual Arts",
+    keywords: [
+      "visual arts", "art", "artist", "painting", "drawing", "sculpture", "portfolio",
+      "gallery", "critique", "composition", "color", "colour", "medium", "exhibition"
+    ]
+  },
+  {
+    topic: "Music",
+    keywords: [
+      "music", "composition", "rhythm", "melody", "harmony", "performance", "analysis",
+      "listening", "instrument", "score", "notation"
+    ]
+  },
+  {
+    topic: "Theatre",
+    keywords: [
+      "theatre", "theater", "drama", "performance", "script", "stage", "acting", "director",
+      "production", "scene"
+    ]
+  },
+  {
+    topic: "Film",
+    keywords: [
+      "film", "cinema", "movie", "screenplay", "director", "editing", "camera", "shot",
+      "soundtrack", "genre", "analysis"
+    ]
+  }
 ];
 
 const buildRevisionDojoUrl = (topic) =>
@@ -1619,6 +1815,32 @@ const findRevisionDojoTopic = (text) => {
     }
   }
   return null;
+};
+
+const buildLocalSuggestionSlots = ({ type, deadline }) => {
+  const base = deadline ? new Date(deadline) : new Date(Date.now() + 2 * 60 * 60 * 1000);
+  const isValidBase = !Number.isNaN(base.getTime());
+  const anchor = isValidBase ? base : new Date(Date.now() + 2 * 60 * 60 * 1000);
+  const addHours = (date, hours) => new Date(date.getTime() + hours * 60 * 60 * 1000);
+  if (type === "exam") {
+    return [
+      { title: "Exam revision session", start: addHours(anchor, -120).toISOString(), durationMin: 60 },
+      { title: "Practice exam questions", start: addHours(anchor, -48).toISOString(), durationMin: 45 },
+      { title: "Final review checklist", start: addHours(anchor, -24).toISOString(), durationMin: 30 },
+    ];
+  }
+  if (type === "assignment") {
+    return [
+      { title: "Practice after class", start: addHours(anchor, -72).toISOString(), durationMin: 45 },
+      { title: "Midway check-in", start: addHours(anchor, -36).toISOString(), durationMin: 30 },
+      { title: "Final polish", start: addHours(anchor, -12).toISOString(), durationMin: 30 },
+    ];
+  }
+  return [
+    { title: "Relaxation break", start: addHours(anchor, 1).toISOString(), durationMin: 20 },
+    { title: "Follow-up session", start: addHours(anchor, 24).toISOString(), durationMin: 30 },
+    { title: "Quick review", start: addHours(anchor, 48).toISOString(), durationMin: 30 },
+  ];
 };
 
 const updateRevisionDojoLink = (entries) => {

@@ -6,6 +6,9 @@ FocusPet.AlarmNames = {
   DATA_CLEANUP: "DATA_CLEANUP_ALARM"
 };
 
+var hostedApiBaseUrl = "https://api.focus-tutor.app";
+var localApiBaseUrl = "http://localhost:5174";
+
 FocusPet.Alarms = {
   startFocusSession: function (durationMins) {
     durationMins = durationMins || 25;
@@ -17,6 +20,18 @@ FocusPet.Alarms = {
 
     chrome.alarms.create(FocusPet.AlarmNames.BREAK_REMINDER, {
       delayInMinutes: durationMins
+    });
+
+    FocusPet.Storage.getSettings().then(function (settings) {
+      if (settings.enableNotifications) {
+        chrome.notifications.create("session_start_" + Date.now(), {
+          type: "basic",
+          iconUrl: "icons/icon48.png",
+          title: "FocusPet - Session Started",
+          message: "Focus session started. Stay on track!",
+          priority: 1
+        });
+      }
     });
   },
 
@@ -60,38 +75,15 @@ FocusPet.Alarms = {
         FocusPet.Storage.saveTabActivity(pageData);
 
         self.getApiBaseUrl().then(function (apiBaseUrl) {
-          fetch(apiBaseUrl + "/api/analyze/focus", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ pageData: pageData, task: session.taskName })
-          })
-            .then(function (response) {
-              if (!response.ok) return null;
-              return response.json();
-            })
-            .then(function (result) {
-              if (!result) return;
-
-              if (typeof result.score === "number") {
-                FocusPet.Storage.updateFocusScore(result.score);
-              }
-
-              if (result.distracted) {
-                FocusPet.Storage.getSettings().then(function (settings) {
-                  if (settings.enableNotifications) {
-                    chrome.notifications.create("focus_" + Date.now(), {
-                      type: "basic",
-                      iconUrl: "icons/icon48.png",
-                      title: "FocusPet - Stay Focused!",
-                      message: result.message || "You seem to be off-task. Time to refocus!"
-                    });
-                  }
-                });
-              }
-            })
-            .catch(function (err) {
+          self.postFocusCheck(apiBaseUrl, pageData, session).catch(function (err) {
+            if (apiBaseUrl === localApiBaseUrl) {
               console.warn("[FocusPet] Focus check API call failed:", err.message);
+              return;
+            }
+            self.postFocusCheck(localApiBaseUrl, pageData, session).catch(function (fallbackErr) {
+              console.warn("[FocusPet] Focus check API call failed:", fallbackErr.message);
             });
+          });
         });
       });
     });
@@ -124,10 +116,42 @@ FocusPet.Alarms = {
     });
   },
 
+  postFocusCheck: function (apiBaseUrl, pageData, session) {
+    return fetch(apiBaseUrl + "/api/analyze/focus", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ pageData: pageData, task: session.taskName })
+    })
+      .then(function (response) {
+        if (!response.ok) return null;
+        return response.json();
+      })
+      .then(function (result) {
+        if (!result) return;
+
+        if (typeof result.score === "number") {
+          FocusPet.Storage.updateFocusScore(result.score);
+        }
+
+        if (result.distracted) {
+          FocusPet.Storage.getSettings().then(function (settings) {
+            if (settings.enableNotifications) {
+              chrome.notifications.create("focus_" + Date.now(), {
+                type: "basic",
+                iconUrl: "icons/icon48.png",
+                title: "FocusPet - Stay Focused!",
+                message: result.message || "You seem to be off-task. Time to refocus!"
+              });
+            }
+          });
+        }
+      });
+  },
+
   getApiBaseUrl: function () {
     return new Promise(function (resolve) {
       chrome.storage.local.get(["apiBaseUrl"], function (result) {
-        resolve(result.apiBaseUrl || "http://localhost:5174");
+        resolve(result.apiBaseUrl || hostedApiBaseUrl);
       });
     });
   },

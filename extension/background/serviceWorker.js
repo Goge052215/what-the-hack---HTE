@@ -1,6 +1,7 @@
 importScripts("storage.js", "messaging.js", "alarms.js");
 
-const defaultApiBaseUrl = "http://localhost:5174";
+const hostedApiBaseUrl = "https://api.focus-tutor.app";
+const localApiBaseUrl = "http://localhost:5174";
 const notificationIcon = chrome.runtime.getURL("icons/icon48.png");
 
 const getStored = (keys) =>
@@ -15,7 +16,7 @@ const setStored = (values) =>
 
 const getApiBaseUrl = async () => {
   const result = await getStored(["apiBaseUrl"]);
-  return result.apiBaseUrl || defaultApiBaseUrl;
+  return result.apiBaseUrl || hostedApiBaseUrl;
 };
 
 const getLastFocusScore = async () => {
@@ -24,9 +25,23 @@ const getLastFocusScore = async () => {
 };
 
 const fetchJson = async (url, options = {}) => {
-  const response = await fetch(url, options);
+  let response;
+  try {
+    response = await fetch(url, options);
+  } catch {
+    return { ok: false, data: null, error: "network_error" };
+  }
   const data = await response.json().catch(() => null);
   return { ok: response.ok, data };
+};
+
+const fetchApiJson = async (path, options = {}) => {
+  const baseUrl = await getApiBaseUrl();
+  const primary = await fetchJson(`${baseUrl}${path}`, options);
+  if (!primary.ok && primary.error === "network_error" && baseUrl !== localApiBaseUrl) {
+    return fetchJson(`${localApiBaseUrl}${path}`, options);
+  }
+  return primary;
 };
 
 const notify = (title, message) => {
@@ -83,16 +98,16 @@ const schedulePhaseNotifications = async (schedule) => {
   });
 };
 
-const resolveHabitId = async (apiBaseUrl) => {
+const resolveHabitId = async () => {
   const cached = await getStored(["activeHabitId"]);
   if (cached.activeHabitId) return cached.activeHabitId;
-  const list = await fetchJson(`${apiBaseUrl}/api/habits`, { method: "GET" });
+  const list = await fetchApiJson("/api/habits", { method: "GET" });
   if (list.ok && Array.isArray(list.data?.data) && list.data.data.length > 0) {
     const habitId = list.data.data[0].id;
     await setStored({ activeHabitId: habitId });
     return habitId;
   }
-  const created = await fetchJson(`${apiBaseUrl}/api/habits`, {
+  const created = await fetchApiJson("/api/habits", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ name: "Focus Sessions" }),
@@ -103,8 +118,7 @@ const resolveHabitId = async (apiBaseUrl) => {
 };
 
 const recordSession = async ({ durationMin, breakTaken }) => {
-  const apiBaseUrl = await getApiBaseUrl();
-  const habitId = await resolveHabitId(apiBaseUrl);
+  const habitId = await resolveHabitId();
   if (!habitId) return;
   const focusScore = await getLastFocusScore();
   const session = {
@@ -113,7 +127,7 @@ const recordSession = async ({ durationMin, breakTaken }) => {
     focusScore,
     breakTaken,
   };
-  await fetchJson(`${apiBaseUrl}/api/habits/sessions`, {
+  await fetchApiJson("/api/habits/sessions", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ habitId, session }),
@@ -136,7 +150,7 @@ let breakDuration = 5 * 60 * 1000; // 5 minutes in milliseconds
 chrome.runtime.onInstalled.addListener(() => {
   chrome.storage.local.get(["apiBaseUrl"], (result) => {
     if (!result.apiBaseUrl) {
-      chrome.storage.local.set({ apiBaseUrl: defaultApiBaseUrl });
+      chrome.storage.local.set({ apiBaseUrl: hostedApiBaseUrl });
     }
   });
 
@@ -174,12 +188,12 @@ chrome.tabs.onActivated.addListener(async (activeInfo) => {
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (message?.type === "getApiBaseUrl") {
     chrome.storage.local.get(["apiBaseUrl"], (result) => {
-      sendResponse({ ok: true, apiBaseUrl: result.apiBaseUrl || defaultApiBaseUrl });
+      sendResponse({ ok: true, apiBaseUrl: result.apiBaseUrl || hostedApiBaseUrl });
     });
     return true;
   }
   if (message?.type === "setApiBaseUrl") {
-    const apiBaseUrl = message.apiBaseUrl || defaultApiBaseUrl;
+    const apiBaseUrl = message.apiBaseUrl || hostedApiBaseUrl;
     chrome.storage.local.set({ apiBaseUrl }, () => {
       sendResponse({ ok: true, apiBaseUrl });
     });
@@ -195,8 +209,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     return true;
   }
   if (message?.type === "fetchScheduleNotifications") {
-    getApiBaseUrl()
-      .then((apiBaseUrl) => fetchJson(`${apiBaseUrl}/api/schedule`, { method: "GET" }))
+    fetchApiJson("/api/schedule", { method: "GET" })
       .then((response) => {
         const schedules = response.data?.data;
         if (!Array.isArray(schedules) || schedules.length === 0) return null;
@@ -341,8 +354,7 @@ async function getNotificationSettings() {
 }
 
 async function getTasks() {
-  const apiBaseUrl = await getApiBaseUrl();
-  const response = await fetchJson(`${apiBaseUrl}/api/tasks`, { method: "GET" });
+  const response = await fetchApiJson("/api/tasks", { method: "GET" });
   if (response.ok && Array.isArray(response.data?.data)) {
     return response.data.data;
   }
