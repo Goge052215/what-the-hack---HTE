@@ -4,6 +4,11 @@ const elements = {
   apiBaseUrl: document.getElementById("apiBaseUrl"),
   saveApiBaseUrl: document.getElementById("saveApiBaseUrl"),
   taskInput: document.getElementById("taskInput"),
+  taskDeadline: document.getElementById("taskDeadline"),
+  addToCalendar: document.getElementById("addToCalendar"),
+  typeAssignment: document.getElementById("typeAssignment"),
+  typeExam: document.getElementById("typeExam"),
+  typeEvent: document.getElementById("typeEvent"),
   addTaskBtn: document.getElementById("addTaskBtn"),
   saveTaskBtn: document.getElementById("saveTaskBtn"),
   currentTaskTitle: document.getElementById("currentTaskTitle"),
@@ -34,6 +39,7 @@ const elements = {
 
 let tasks = [];
 let currentTaskIndex = 0;
+let selectedTaskType = "assignment";
 
 const loadTheme = () => {
   chrome.storage.local.get(["theme"], (result) => {
@@ -91,9 +97,14 @@ const addTask = async () => {
   const description = elements.taskInput.value.trim();
   if (!description) return;
 
+  const deadline = elements.taskDeadline.value;
+  const addToCalendar = elements.addToCalendar.checked;
+
   const newTask = {
     id: Date.now().toString(),
     description,
+    type: selectedTaskType,
+    deadline: deadline || null,
     status: "not-started",
     completed: false,
     createdAt: new Date().toISOString(),
@@ -103,20 +114,99 @@ const addTask = async () => {
   saveTasks();
   renderTasks();
   updateCurrentTask();
+  
+  // Add to Google Calendar if checked
+  if (addToCalendar && deadline) {
+    await addToGoogleCalendar(newTask);
+  }
+  
+  // Reset form
   elements.taskInput.value = "";
+  elements.taskDeadline.value = "";
+  elements.addToCalendar.checked = false;
   elements.addTaskPanel.style.display = "none";
   
   // Optionally call API to split task
   try {
     const response = await apiRequest("/api/tasks", {
       method: "POST",
-      body: { description },
+      body: { description, type: selectedTaskType, deadline },
     });
     if (response.ok && response.data?.subtasks) {
       // Could update task with subtasks if needed
     }
   } catch (error) {
     // Silently fail, task is already added locally
+  }
+};
+
+const addToGoogleCalendar = async (task) => {
+  try {
+    // Get OAuth token
+    const token = await new Promise((resolve, reject) => {
+      chrome.identity.getAuthToken({ interactive: true }, (token) => {
+        if (chrome.runtime.lastError) {
+          reject(chrome.runtime.lastError);
+        } else {
+          resolve(token);
+        }
+      });
+    });
+
+    // Prepare event data
+    const deadline = new Date(task.deadline);
+    const eventData = {
+      summary: `${task.type === "assignment" ? "📝" : task.type === "exam" ? "📝" : "📅"} ${task.description}`,
+      description: `Task Type: ${task.type}\nCreated from Focus Tutor`,
+      start: {
+        dateTime: deadline.toISOString(),
+        timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+      },
+      end: {
+        dateTime: new Date(deadline.getTime() + 60 * 60 * 1000).toISOString(), // 1 hour duration
+        timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+      },
+      reminders: {
+        useDefault: false,
+        overrides: [
+          { method: "popup", minutes: 60 },
+          { method: "popup", minutes: 1440 }, // 1 day before
+        ],
+      },
+    };
+
+    // Create calendar event
+    const response = await fetch("https://www.googleapis.com/calendar/v3/calendars/primary/events", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(eventData),
+    });
+
+    if (response.ok) {
+      console.log("Event added to Google Calendar successfully");
+    } else {
+      console.error("Failed to add event to Google Calendar");
+    }
+  } catch (error) {
+    console.error("Error adding to Google Calendar:", error);
+  }
+};
+
+const setTaskType = (type) => {
+  selectedTaskType = type;
+  [elements.typeAssignment, elements.typeExam, elements.typeEvent].forEach((btn) => {
+    btn.classList.remove("active");
+  });
+  
+  if (type === "assignment") {
+    elements.typeAssignment.classList.add("active");
+  } else if (type === "exam") {
+    elements.typeExam.classList.add("active");
+  } else if (type === "event") {
+    elements.typeEvent.classList.add("active");
   }
 };
 
@@ -504,6 +594,18 @@ elements.statusOngoing.addEventListener("click", () => {
 
 elements.statusCompleted.addEventListener("click", () => {
   setTaskStatus("completed");
+});
+
+elements.typeAssignment.addEventListener("click", () => {
+  setTaskType("assignment");
+});
+
+elements.typeExam.addEventListener("click", () => {
+  setTaskType("exam");
+});
+
+elements.typeEvent.addEventListener("click", () => {
+  setTaskType("event");
 });
 
 /*

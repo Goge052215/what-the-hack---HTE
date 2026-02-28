@@ -47,6 +47,24 @@
       <div id="addTaskPanel" class="panel" style="display: none;">
         <h3>Add New Task</h3>
         <input id="taskInput" type="text" placeholder="What do you want to accomplish?" />
+        
+        <label>Task Type</label>
+        <div class="task-type-selector">
+          <button id="typeAssignment" class="task-type-btn active" data-type="assignment">📝 Assignment</button>
+          <button id="typeExam" class="task-type-btn" data-type="exam">📝 Exam</button>
+          <button id="typeEvent" class="task-type-btn" data-type="event">📅 Event</button>
+        </div>
+        
+        <label for="taskDeadline">Deadline</label>
+        <input id="taskDeadline" type="datetime-local" />
+        
+        <div class="calendar-option">
+          <label class="checkbox-label">
+            <input id="addToCalendar" type="checkbox" />
+            <span>📅 Add to Google Calendar</span>
+          </label>
+        </div>
+        
         <button id="saveTaskBtn" class="save-btn">Add Task</button>
       </div>
 
