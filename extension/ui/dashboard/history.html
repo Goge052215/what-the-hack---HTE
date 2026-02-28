@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Quicksand:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="dashboard.css" />
+    <title>Task History - Focus Tutor</title>
+    <style>
+      .history-list {
+        list-style: none;
+        padding: 0;
+        margin: 0;
+        display: grid;
+        gap: 12px;
+      }
+      .history-item {
+        display: flex;
+        align-items: center;
+        gap: 16px;
+        padding: 16px;
+        background: var(--bg-tertiary);
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        transition: all 0.2s ease;
+      }
+      .history-item:hover {
+        border-color: var(--accent);
+        transform: translateY(-2px);
+      }
+      .history-status {
+        font-size: 18px;
+        color: var(--success);
+      }
+      .history-content {
+        flex: 1;
+      }
+      .history-title {
+        font-size: 14px;
+        font-weight: 600;
+        color: var(--text-primary);
+        margin: 0 0 4px;
+        text-decoration: line-through;
+        opacity: 0.8;
+      }
+      .history-meta {
+        font-size: 12px;
+        color: var(--text-tertiary);
+      }
+      .back-link {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        color: var(--text-secondary);
+        text-decoration: none;
+        font-size: 14px;
+        font-weight: 600;
+        margin-bottom: 20px;
+        transition: color 0.2s ease;
+      }
+      .back-link:hover {
+        color: var(--accent);
+      }
+      .empty-history {
+        text-align: center;
+        padding: 40px;
+        color: var(--text-tertiary);
+      }
+    </style>
+  </head>
+  <body>
+    <main class="layout">
+      <header class="dashboard-header">
+        <a href="dashboard.html" class="back-link">← Back to Dashboard</a>
+        <div class="header-top">
+          <div>
+            <h1>Task History</h1>
+            <p>Your completed achievements</p>
+          </div>
+          <div class="header-actions">
+            <button id="themeToggle" class="theme-toggle" aria-label="Toggle theme">☀️</button>
+          </div>
+        </div>
+      </header>
+
+      <section class="card">
+        <div id="historyContainer">
+          <ul id="historyList" class="history-list"></ul>
+        </div>
+      </section>
+    </main>
+    <script type="module" src="history.js"></script>
+  </body>
+</html>

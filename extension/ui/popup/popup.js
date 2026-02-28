@@ -780,8 +780,11 @@ const toggleTask = (taskId) => {
   const task = tasks.find((t) => t.id === taskId);
   if (task) {
     task.completed = !task.completed;
-    if (task.completed && !task.status) {
-      task.status = "completed";
+    if (task.completed) {
+      if (!task.status) task.status = "completed";
+      if (!task.completedAt) task.completedAt = new Date().toISOString();
+    } else {
+      task.completedAt = null;
     }
     saveTasks();
     renderTasks();
@@ -839,6 +842,7 @@ const setTaskStatus = (status) => {
   activeTask.status = status;
   if (status === "completed") {
     activeTask.completed = true;
+    activeTask.completedAt = new Date().toISOString();
   }
   
   saveTasks();
@@ -963,15 +967,17 @@ const deleteTask = (taskId) => {
 };
 
 const renderTasks = () => {
-  if (tasks.length === 0) {
+  const pendingTasks = tasks.filter(t => !t.completed);
+  
+  if (pendingTasks.length === 0) {
     elements.subtasksStatus.style.display = "block";
-    elements.subtasksStatus.textContent = "No tasks yet";
+    elements.subtasksStatus.textContent = "No pending tasks";
     elements.subtasksList.innerHTML = "";
     return;
   }
 
   elements.subtasksStatus.style.display = "none";
-  elements.subtasksList.innerHTML = tasks
+  elements.subtasksList.innerHTML = pendingTasks
     .map(
       (task) => `
       <li>

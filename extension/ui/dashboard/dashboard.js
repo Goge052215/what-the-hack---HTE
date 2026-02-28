@@ -493,6 +493,11 @@ const toggleTask = (taskId) => {
   const task = tasks.find((t) => t.id === taskId);
   if (task) {
     task.completed = !task.completed;
+    if (task.completed && !task.completedAt) {
+      task.completedAt = new Date().toISOString();
+    } else if (!task.completed) {
+      task.completedAt = null;
+    }
     saveLocalTasks();
     renderTasks();
     updateInsights();
