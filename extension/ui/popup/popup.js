@@ -29,6 +29,7 @@ const elements = {
   analysisList: document.getElementById("analysisList"),
   lightThemeBtn: document.getElementById("lightThemeBtn"),
   darkThemeBtn: document.getElementById("darkThemeBtn"),
+  autoThemeBtn: document.getElementById("autoThemeBtn"),
   openDashboardBtn: document.getElementById("openDashboardBtn"),
   settingsBtn: document.getElementById("settingsBtn"),
   taskListBtn: document.getElementById("taskListBtn"),
@@ -49,15 +50,38 @@ const loadTheme = () => {
   });
 };
 
+const getAutoTheme = () => {
+  const hour = new Date().getHours();
+  // Dark mode from 8pm (20:00) to 6am (6:00)
+  return (hour >= 20 || hour < 6) ? "dark" : "light";
+};
+
 const applyTheme = (theme) => {
-  if (theme === "dark") {
+  let actualTheme = theme;
+  
+  // If auto mode, determine theme based on time
+  if (theme === "auto") {
+    actualTheme = getAutoTheme();
+  }
+  
+  // Apply the theme
+  if (actualTheme === "dark") {
     document.body.classList.add("dark-theme");
-    elements.lightThemeBtn.classList.remove("active");
-    elements.darkThemeBtn.classList.add("active");
   } else {
     document.body.classList.remove("dark-theme");
+  }
+  
+  // Update button states
+  elements.lightThemeBtn.classList.remove("active");
+  elements.darkThemeBtn.classList.remove("active");
+  elements.autoThemeBtn.classList.remove("active");
+  
+  if (theme === "light") {
     elements.lightThemeBtn.classList.add("active");
-    elements.darkThemeBtn.classList.remove("active");
+  } else if (theme === "dark") {
+    elements.darkThemeBtn.classList.add("active");
+  } else if (theme === "auto") {
+    elements.autoThemeBtn.classList.add("active");
   }
 };
 
@@ -577,6 +601,15 @@ const init = async () => {
     await analyzeTabs();
     await detectTaskProgress();
   }, 30000);
+  
+  // Check theme every minute for auto mode
+  setInterval(() => {
+    chrome.storage.local.get(["theme"], (result) => {
+      if (result.theme === "auto") {
+        applyTheme("auto");
+      }
+    });
+  }, 60000); // Check every minute
 };
 
 
@@ -604,6 +637,10 @@ elements.lightThemeBtn.addEventListener("click", () => {
 
 elements.darkThemeBtn.addEventListener("click", () => {
   setTheme("dark");
+});
+
+elements.autoThemeBtn.addEventListener("click", () => {
+  setTheme("auto");
 });
 
 elements.openDashboardBtn.addEventListener("click", () => {
