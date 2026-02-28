@@ -38,6 +38,13 @@ input {
   padding: 6px 8px;
   background: #111827;
   color: #e2e8f0;
+  transition: border-color 0.2s ease;
+}
+
+input:focus {
+  outline: none;
+  border-color: #38bdf8;
+  box-shadow: 0 0 0 3px rgba(56, 189, 248, 0.1);
 }
 
 button {
@@ -48,6 +55,16 @@ button {
   padding: 6px 8px;
   font-weight: 600;
   cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+button:hover {
+  background: #0ea5e9;
+  transform: translateY(-1px);
+}
+
+button:active {
+  transform: translateY(0);
 }
 
 button#logout {

@@ -172,6 +172,16 @@ const analyzeTabs = async () => {
   elements.focusScoreValue.textContent = typeof score === "number" ? score.toFixed(2) : "--";
   elements.analysisMeta.textContent = `Tabs analyzed: ${count}`;
   elements.focusProgressBar.style.width = `${(score * 100).toFixed(0)}%`;
+  
+  const scoreCircle = document.querySelector(".score-circle");
+  scoreCircle.classList.remove("score-high", "score-medium", "score-low");
+  if (score >= 0.7) {
+    scoreCircle.classList.add("score-high");
+  } else if (score >= 0.4) {
+    scoreCircle.classList.add("score-medium");
+  } else if (score > 0) {
+    scoreCircle.classList.add("score-low");
+  }
 };
 
 const init = async () => {
