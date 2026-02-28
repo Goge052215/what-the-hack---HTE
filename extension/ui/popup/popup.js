@@ -635,84 +635,78 @@ const saveNotificationSettings = () => {
 };
 
 const testAllNotifications = async () => {
-  // Request notification permission first
-  const granted = await chrome.permissions.request({ permissions: ['notifications'] });
-  if (!granted) {
-    alert('Please enable notifications to test!');
-    return;
-  }
+  console.log('Testing notifications...');
   
-  // Test 1: Distraction Alert
-  setTimeout(() => {
+  // Simple 1x1 transparent PNG as data URL (Chrome requires iconUrl)
+  const iconUrl = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==';
+  
+  try {
+    alert('Sending all 6 test notifications now! Check your notifications.');
+    
+    // Create all notifications immediately (no delays)
+    
+    // Test 1: Distraction Alert
     chrome.notifications.create('test-distraction', {
       type: 'basic',
-      iconUrl: chrome.runtime.getURL('assets/icon128.png'),
-      title: '🤔 Noticed you\'re switching tabs',
-      message: 'It seems you might be distracted. Consider returning to your task.',
+      iconUrl: iconUrl,
+      title: '👋 Hey! Get back to your task',
+      message: 'You\'ve been switching tabs a lot. Time to refocus on what matters!',
       priority: 2
     });
-  }, 500);
-  
-  // Test 2: Break Reminder
-  setTimeout(() => {
+    
+    // Test 2: Break Reminder
     chrome.notifications.create('test-break', {
       type: 'basic',
-      iconUrl: chrome.runtime.getURL('assets/icon128.png'),
-      title: '⏰ Time for a break!',
-      message: 'You\'ve been focused for 45 minutes. Take a 5-minute break to recharge.',
+      iconUrl: iconUrl,
+      title: '☕ Take a break!',
+      message: 'You\'ve been working hard for 45 minutes. Step away for 5 minutes to recharge your brain!',
       buttons: [
         { title: 'Take Break' },
         { title: 'Keep Working' }
       ],
       priority: 2
     });
-  }, 2000);
-  
-  // Test 3: Deadline Warning (24h)
-  setTimeout(() => {
+    
+    // Test 3: Deadline Warning (24h)
     chrome.notifications.create('test-deadline-24h', {
       type: 'basic',
-      iconUrl: chrome.runtime.getURL('assets/icon128.png'),
-      title: '⚠️ Deadline Approaching',
-      message: 'Essay Assignment is due in 24 hours!',
+      iconUrl: iconUrl,
+      title: '📅 Don\'t forget!',
+      message: 'Your Essay Assignment is due tomorrow. Make sure you\'re on track!',
       priority: 2
     });
-  }, 3500);
-  
-  // Test 4: Deadline Warning (1h)
-  setTimeout(() => {
+    
+    // Test 4: Deadline Warning (1h)
     chrome.notifications.create('test-deadline-1h', {
       type: 'basic',
-      iconUrl: chrome.runtime.getURL('assets/icon128.png'),
-      title: '⚠️ Deadline Soon!',
-      message: 'Math Exam is due in 1 hour!',
+      iconUrl: iconUrl,
+      title: '⏰ One hour left!',
+      message: 'Math Exam is due in 1 hour. Time to wrap up and submit!',
       priority: 2
     });
-  }, 5000);
-  
-  // Test 5: Deadline Imminent (15m)
-  setTimeout(() => {
+    
+    // Test 5: Deadline Imminent (15m)
     chrome.notifications.create('test-deadline-15m', {
       type: 'basic',
-      iconUrl: chrome.runtime.getURL('assets/icon128.png'),
-      title: '🚨 Deadline Imminent!',
-      message: 'Project Submission is due in 15 minutes!',
+      iconUrl: iconUrl,
+      title: '🚨 Final warning!',
+      message: 'Project Submission is due in 15 minutes! Submit now!',
       priority: 2
     });
-  }, 6500);
-  
-  // Test 6: Task Nudge
-  setTimeout(() => {
+    
+    // Test 6: Task Nudge
     chrome.notifications.create('test-nudge', {
       type: 'basic',
-      iconUrl: chrome.runtime.getURL('assets/icon128.png'),
-      title: '💡 Task Suggestion',
-      message: 'You just finished a video. Want to summarize key points?',
+      iconUrl: iconUrl,
+      title: '💡 Quick tip!',
+      message: 'You just watched a lecture video. Take 2 minutes to write down the key points while they\'re fresh!',
       priority: 2
     });
-  }, 8000);
-  
-  alert('Testing all notifications! You should see 6 notifications over the next 10 seconds.');
+    
+  } catch (error) {
+    console.error('Error testing notifications:', error);
+    alert('Error: ' + error.message);
+  }
 };
 
 const init = async () => {

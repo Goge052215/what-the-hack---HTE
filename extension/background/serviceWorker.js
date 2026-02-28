@@ -29,8 +29,8 @@ chrome.tabs.onActivated.addListener(async (activeInfo) => {
     if (tabSwitchCount >= 3) {
       showNotification(
         "distraction",
-        "🤔 Noticed you're switching tabs",
-        "It seems you might be distracted. Consider returning to your task."
+        "👋 Hey! Get back to your task",
+        "You've been switching tabs a lot. Time to refocus on what matters!"
       );
       tabSwitchCount = 0;
     }
@@ -82,6 +82,15 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     focusStartTime = null;
     sendResponse({ ok: true });
   }
+  if (message?.type === "testNotification") {
+    console.log('Background: Creating test notification...');
+    showNotification(
+      'bg-test-' + Date.now(),
+      '🔔 Background Test',
+      'This notification is from the background service worker!'
+    );
+    sendResponse({ ok: true });
+  }
   return false;
 });
 
@@ -110,13 +119,22 @@ async function getTasks() {
 }
 
 function showNotification(id, title, message, buttons = []) {
+  // Use data URL for icon since we don't have icon files
+  const iconUrl = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==';
+  
   chrome.notifications.create(id, {
     type: "basic",
-    iconUrl: "../assets/icon128.png",
+    iconUrl: iconUrl,
     title: title,
     message: message,
     buttons: buttons,
     priority: 2
+  }, (notificationId) => {
+    if (chrome.runtime.lastError) {
+      console.error('Notification error:', chrome.runtime.lastError);
+    } else {
+      console.log('Notification created:', notificationId);
+    }
   });
 }
 
@@ -130,8 +148,8 @@ async function checkBreakReminder(settings) {
   if (elapsed >= focusDurationMs && elapsed < focusDurationMs + 60000) {
     showNotification(
       "break-reminder",
-      "⏰ Time for a break!",
-      `You've been focused for ${settings.focusDuration} minutes. Take a 5-minute break to recharge.`,
+      "☕ Take a break!",
+      `You've been working hard for ${settings.focusDuration} minutes. Step away for 5 minutes to recharge your brain!`,
       [
         { title: "Take Break" },
         { title: "Keep Working" }
@@ -157,20 +175,20 @@ async function checkDeadlines(settings) {
     if (hoursUntil <= 24 && hoursUntil > 23.9) {
       showNotification(
         `deadline-24h-${task.id}`,
-        "⚠️ Deadline Approaching",
-        `${task.description} is due in 24 hours!`
+        "📅 Don't forget!",
+        `Your ${task.description} is due tomorrow. Make sure you're on track!`
       );
     } else if (hoursUntil <= 1 && hoursUntil > 0.95) {
       showNotification(
         `deadline-1h-${task.id}`,
-        "⚠️ Deadline Soon!",
-        `${task.description} is due in 1 hour!`
+        "⏰ One hour left!",
+        `${task.description} is due in 1 hour. Time to wrap up and submit!`
       );
     } else if (hoursUntil <= 0.25 && hoursUntil > 0.2) {
       showNotification(
         `deadline-15m-${task.id}`,
-        "🚨 Deadline Imminent!",
-        `${task.description} is due in 15 minutes!`
+        "🚨 Final warning!",
+        `${task.description} is due in 15 minutes! Submit now!`
       );
     }
   });
