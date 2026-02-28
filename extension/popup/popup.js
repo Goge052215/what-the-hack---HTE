@@ -9,6 +9,8 @@ const elements = {
   currentTaskTitle: document.getElementById("currentTaskTitle"),
   progressContainer: document.getElementById("progressContainer"),
   progressBar: document.getElementById("progressBar"),
+  progressDetection: document.getElementById("progressDetection"),
+  progressConfidence: document.getElementById("progressConfidence"),
   statusNotStarted: document.getElementById("statusNotStarted"),
   statusOngoing: document.getElementById("statusOngoing"),
   statusCompleted: document.getElementById("statusCompleted"),
@@ -148,6 +150,9 @@ const updateCurrentTask = () => {
   const status = activeTask.status || "not-started";
   updateProgressBar(status);
   updateStatusButtons(status);
+  
+  // Trigger progress detection
+  detectTaskProgress();
 };
 
 const updateProgressBar = (status) => {
@@ -185,6 +190,115 @@ const setTaskStatus = (status) => {
   saveTasks();
   renderTasks();
   updateCurrentTask();
+};
+
+const detectTaskProgress = async () => {
+  const activeTask = tasks.find((t) => !t.completed);
+  if (!activeTask) return;
+
+  // Show analyzing state
+  elements.progressDetection.textContent = "🔍 Analyzing...";
+  elements.progressDetection.classList.add("analyzing");
+  elements.progressConfidence.textContent = "";
+  
+  // Clear detected badges
+  [elements.statusNotStarted, elements.statusOngoing, elements.statusCompleted].forEach((btn) => {
+    btn.classList.remove("detected");
+  });
+
+  try {
+    // Get current tabs
+    const tabs = await chrome.tabs.query({ currentWindow: true });
+    const context = buildContext(tabs);
+    
+    // Call API to analyze task progress
+    const response = await apiRequest("/api/analysis/task-progress", {
+      method: "POST",
+      body: {
+        task: activeTask.description,
+        currentStatus: activeTask.status || "not-started",
+        tabs: context.tabs.map((t) => ({
+          title: t.title,
+          url: t.url,
+          active: t.active,
+        })),
+      },
+    });
+
+    if (response.ok && response.data) {
+      const { detectedStatus, confidence, reasoning } = response.data;
+      
+      // Update UI with detection results
+      elements.progressDetection.textContent = `📊 Detected: ${detectedStatus}`;
+      elements.progressDetection.classList.remove("analyzing");
+      
+      // Show confidence level
+      if (confidence) {
+        const confidencePercent = Math.round(confidence * 100);
+        elements.progressConfidence.textContent = `${confidencePercent}% confidence`;
+        
+        if (confidence >= 0.7) {
+          elements.progressConfidence.className = "progress-confidence high";
+        } else if (confidence >= 0.4) {
+          elements.progressConfidence.className = "progress-confidence medium";
+        } else {
+          elements.progressConfidence.className = "progress-confidence low";
+        }
+      }
+      
+      // Mark detected status button
+      if (detectedStatus === "not-started") {
+        elements.statusNotStarted.classList.add("detected");
+      } else if (detectedStatus === "ongoing") {
+        elements.statusOngoing.classList.add("detected");
+      } else if (detectedStatus === "completed") {
+        elements.statusCompleted.classList.add("detected");
+      }
+      
+      // Auto-update if confidence is high and status changed
+      if (confidence >= 0.7 && detectedStatus !== activeTask.status) {
+        // Wait a moment to show the detection, then update
+        setTimeout(() => {
+          setTaskStatus(detectedStatus);
+        }, 1500);
+      }
+    } else {
+      // Fallback to local analysis
+      localProgressDetection(activeTask, context);
+    }
+  } catch (error) {
+    // Fallback to local analysis
+    const tabs = await chrome.tabs.query({ currentWindow: true });
+    const context = buildContext(tabs);
+    localProgressDetection(activeTask, context);
+  }
+};
+
+const localProgressDetection = (task, context) => {
+  elements.progressDetection.textContent = "📊 Local analysis";
+  elements.progressDetection.classList.remove("analyzing");
+  
+  // Simple heuristic: check if task keywords appear in tab titles
+  const taskKeywords = task.description.toLowerCase().split(" ").filter((w) => w.length > 3);
+  const tabTitles = context.tabs.map((t) => t.title.toLowerCase()).join(" ");
+  
+  const matchCount = taskKeywords.filter((keyword) => tabTitles.includes(keyword)).length;
+  const matchRatio = taskKeywords.length > 0 ? matchCount / taskKeywords.length : 0;
+  
+  let detectedStatus = "not-started";
+  if (matchRatio >= 0.5) {
+    detectedStatus = "ongoing";
+  }
+  if (matchRatio >= 0.8 && context.tabs.length > 3) {
+    detectedStatus = "completed";
+  }
+  
+  elements.progressConfidence.textContent = `${Math.round(matchRatio * 100)}% match`;
+  elements.progressConfidence.className = "progress-confidence medium";
+  
+  if (detectedStatus === "ongoing") {
+    elements.statusOngoing.classList.add("detected");
+  }
 };
 
 const renderTasks = () => {
@@ -321,7 +435,12 @@ const init = async () => {
   const baseUrl = await ensureApiBaseUrl();
   elements.apiBaseUrl.value = baseUrl;
   await analyzeTabs();
-  setInterval(analyzeTabs, 30000);
+  
+  // Run tab analysis and progress detection every 30 seconds
+  setInterval(async () => {
+    await analyzeTabs();
+    await detectTaskProgress();
+  }, 30000);
 };
 
 
