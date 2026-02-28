@@ -683,3 +683,25 @@ input:focus {
   cursor: pointer;
   line-height: 1.4;
 }
+
+.delete-task-btn {
+  background: transparent;
+  border: none;
+  font-size: 16px;
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 4px;
+  transition: all 0.2s ease;
+  opacity: 0.5;
+  flex-shrink: 0;
+}
+
+.delete-task-btn:hover {
+  opacity: 1;
+  background: var(--error);
+  transform: scale(1.1);
+}
+
+.delete-task-btn:active {
+  transform: scale(0.95);
+}

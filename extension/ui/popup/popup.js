@@ -412,6 +412,13 @@ const localProgressDetection = (task, context) => {
   }
 };
 
+const deleteTask = (taskId) => {
+  tasks = tasks.filter((t) => t.id !== taskId);
+  saveTasks();
+  renderTasks();
+  updateCurrentTask();
+};
+
 const renderTasks = () => {
   if (tasks.length === 0) {
     elements.subtasksStatus.style.display = "block";
@@ -433,6 +440,7 @@ const renderTasks = () => {
         <label style="${task.completed ? "text-decoration: line-through; opacity: 0.6;" : ""}">
           ${task.description}
         </label>
+        <button class="delete-task-btn" data-task-id="${task.id}" title="Delete task">🗑️</button>
       </li>
     `
     )
@@ -441,6 +449,12 @@ const renderTasks = () => {
   document.querySelectorAll('.task-list input[type="checkbox"]').forEach((checkbox) => {
     checkbox.addEventListener("change", (e) => {
       toggleTask(e.target.dataset.taskId);
+    });
+  });
+  
+  document.querySelectorAll('.delete-task-btn').forEach((btn) => {
+    btn.addEventListener("click", (e) => {
+      deleteTask(e.target.dataset.taskId);
     });
   });
 };
