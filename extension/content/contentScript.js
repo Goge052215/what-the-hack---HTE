@@ -52,6 +52,15 @@ var FocusPet = window.FocusPet || {};
       return true;
     }
 
+    if (message.type === "WORK_RELAX_STATUS") {
+      window.postMessage({
+        type: "WORK_RELAX_STATUS",
+        payload: message.payload || {}
+      }, "*");
+      sendResponse({ ok: true });
+      return false;
+    }
+
     return false;
   });
 
@@ -73,4 +82,12 @@ var FocusPet = window.FocusPet || {};
   });
 
   window.addEventListener("popstate", debouncedSend);
+
+  window.addEventListener("message", function (event) {
+    if (!event || !event.data || event.data.type !== "WORK_RELAX_STATUS") return;
+    chrome.runtime.sendMessage({
+      type: "WORK_RELAX_STATUS",
+      payload: event.data.payload || {}
+    });
+  });
 })();
