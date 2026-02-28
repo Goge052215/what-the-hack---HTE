@@ -4,8 +4,9 @@ const elements = {
   apiBaseUrl: document.getElementById("apiBaseUrl"),
   saveApiBaseUrl: document.getElementById("saveApiBaseUrl"),
   taskInput: document.getElementById("taskInput"),
-  taskDeadline: document.getElementById("taskDeadline"),
-  addToCalendar: document.getElementById("addToCalendar"),
+  taskDeadlineDate: document.getElementById("taskDeadlineDate"),
+  taskDeadlineTime: document.getElementById("taskDeadlineTime"),
+  // addToCalendar: document.getElementById("addToCalendar"), // Disabled until Chrome Web Store publish
   typeAssignment: document.getElementById("typeAssignment"),
   typeExam: document.getElementById("typeExam"),
   typeEvent: document.getElementById("typeEvent"),
@@ -28,7 +29,15 @@ const elements = {
   analysisList: document.getElementById("analysisList"),
   lightThemeBtn: document.getElementById("lightThemeBtn"),
   darkThemeBtn: document.getElementById("darkThemeBtn"),
+  autoThemeBtn: document.getElementById("autoThemeBtn"),
   openDashboardBtn: document.getElementById("openDashboardBtn"),
+  testNotificationsBtn: document.getElementById("testNotificationsBtn"),
+  enableNotifications: document.getElementById("enableNotifications"),
+  distractionAlerts: document.getElementById("distractionAlerts"),
+  breakReminders: document.getElementById("breakReminders"),
+  deadlineReminders: document.getElementById("deadlineReminders"),
+  taskNudges: document.getElementById("taskNudges"),
+  focusDuration: document.getElementById("focusDuration"),
   settingsBtn: document.getElementById("settingsBtn"),
   taskListBtn: document.getElementById("taskListBtn"),
   taskCount: document.getElementById("taskCount"),
@@ -40,6 +49,14 @@ const elements = {
 let tasks = [];
 let currentTaskIndex = 0;
 let selectedTaskType = "assignment";
+let notificationSettings = {
+  enabled: true,
+  distractionAlerts: true,
+  breakReminders: true,
+  deadlineReminders: true,
+  taskNudges: true,
+  focusDuration: 45
+};
 
 const loadTheme = () => {
   chrome.storage.local.get(["theme"], (result) => {
@@ -48,15 +65,38 @@ const loadTheme = () => {
   });
 };
 
+const getAutoTheme = () => {
+  const hour = new Date().getHours();
+  // Dark mode from 8pm (20:00) to 6am (6:00)
+  return (hour >= 20 || hour < 6) ? "dark" : "light";
+};
+
 const applyTheme = (theme) => {
-  if (theme === "dark") {
+  let actualTheme = theme;
+  
+  // If auto mode, determine theme based on time
+  if (theme === "auto") {
+    actualTheme = getAutoTheme();
+  }
+  
+  // Apply the theme
+  if (actualTheme === "dark") {
     document.body.classList.add("dark-theme");
-    elements.lightThemeBtn.classList.remove("active");
-    elements.darkThemeBtn.classList.add("active");
   } else {
     document.body.classList.remove("dark-theme");
+  }
+  
+  // Update button states
+  elements.lightThemeBtn.classList.remove("active");
+  elements.darkThemeBtn.classList.remove("active");
+  elements.autoThemeBtn.classList.remove("active");
+  
+  if (theme === "light") {
     elements.lightThemeBtn.classList.add("active");
-    elements.darkThemeBtn.classList.remove("active");
+  } else if (theme === "dark") {
+    elements.darkThemeBtn.classList.add("active");
+  } else if (theme === "auto") {
+    elements.autoThemeBtn.classList.add("active");
   }
 };
 
@@ -97,14 +137,21 @@ const addTask = async () => {
   const description = elements.taskInput.value.trim();
   if (!description) return;
 
-  const deadline = elements.taskDeadline.value;
-  const addToCalendar = elements.addToCalendar.checked;
+  const deadlineDate = elements.taskDeadlineDate.value;
+  const deadlineTime = elements.taskDeadlineTime.value;
+  
+  // Combine date and time into ISO string
+  let deadline = null;
+  if (deadlineDate) {
+    const timeStr = deadlineTime || "23:59";
+    deadline = `${deadlineDate}T${timeStr}`;
+  }
 
   const newTask = {
     id: Date.now().toString(),
     description,
     type: selectedTaskType,
-    deadline: deadline || null,
+    deadline: deadline,
     status: "not-started",
     completed: false,
     createdAt: new Date().toISOString(),
@@ -115,15 +162,13 @@ const addTask = async () => {
   renderTasks();
   updateCurrentTask();
   
-  // Add to Google Calendar if checked
-  if (addToCalendar && deadline) {
-    await addToGoogleCalendar(newTask);
-  }
+  // Google Calendar integration disabled until Chrome Web Store publication
+  // Will be enabled when extension is published and OAuth is configured
   
   // Reset form
   elements.taskInput.value = "";
-  elements.taskDeadline.value = "";
-  elements.addToCalendar.checked = false;
+  elements.taskDeadlineDate.value = "";
+  elements.taskDeadlineTime.value = "";
   elements.addTaskPanel.style.display = "none";
   
   // Optionally call API to split task
@@ -146,6 +191,7 @@ const addToGoogleCalendar = async (task) => {
     const token = await new Promise((resolve, reject) => {
       chrome.identity.getAuthToken({ interactive: true }, (token) => {
         if (chrome.runtime.lastError) {
+          console.error("OAuth error:", chrome.runtime.lastError);
           reject(chrome.runtime.lastError);
         } else {
           resolve(token);
@@ -153,11 +199,17 @@ const addToGoogleCalendar = async (task) => {
       });
     });
 
+    if (!token) {
+      console.error("No token received");
+      return false;
+    }
+
     // Prepare event data
     const deadline = new Date(task.deadline);
+    const typeEmoji = task.type === "assignment" ? "📝" : task.type === "exam" ? "�" : "📅";
     const eventData = {
-      summary: `${task.type === "assignment" ? "📝" : task.type === "exam" ? "📝" : "📅"} ${task.description}`,
-      description: `Task Type: ${task.type}\nCreated from Focus Tutor`,
+      summary: `${typeEmoji} ${task.description}`,
+      description: `Task Type: ${task.type}\nCreated from Focus Tutor Extension`,
       start: {
         dateTime: deadline.toISOString(),
         timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
@@ -175,6 +227,8 @@ const addToGoogleCalendar = async (task) => {
       },
     };
 
+    console.log("Creating calendar event:", eventData);
+
     // Create calendar event
     const response = await fetch("https://www.googleapis.com/calendar/v3/calendars/primary/events", {
       method: "POST",
@@ -186,12 +240,17 @@ const addToGoogleCalendar = async (task) => {
     });
 
     if (response.ok) {
-      console.log("Event added to Google Calendar successfully");
+      const result = await response.json();
+      console.log("Event added to Google Calendar successfully:", result);
+      return true;
     } else {
-      console.error("Failed to add event to Google Calendar");
+      const error = await response.text();
+      console.error("Failed to add event to Google Calendar:", error);
+      return false;
     }
   } catch (error) {
     console.error("Error adding to Google Calendar:", error);
+    return false;
   }
 };
 
@@ -241,9 +300,6 @@ const updateCurrentTask = () => {
   const status = activeTask.status || "not-started";
   updateProgressBar(status);
   updateStatusButtons(status);
-  
-  // Trigger progress detection
-  detectTaskProgress();
 };
 
 const updateProgressBar = (status) => {
@@ -392,6 +448,13 @@ const localProgressDetection = (task, context) => {
   }
 };
 
+const deleteTask = (taskId) => {
+  tasks = tasks.filter((t) => t.id !== taskId);
+  saveTasks();
+  renderTasks();
+  updateCurrentTask();
+};
+
 const renderTasks = () => {
   if (tasks.length === 0) {
     elements.subtasksStatus.style.display = "block";
@@ -413,6 +476,7 @@ const renderTasks = () => {
         <label style="${task.completed ? "text-decoration: line-through; opacity: 0.6;" : ""}">
           ${task.description}
         </label>
+        <button class="delete-task-btn" data-task-id="${task.id}" title="Delete task">🗑️</button>
       </li>
     `
     )
@@ -421,6 +485,12 @@ const renderTasks = () => {
   document.querySelectorAll('.task-list input[type="checkbox"]').forEach((checkbox) => {
     checkbox.addEventListener("change", (e) => {
       toggleTask(e.target.dataset.taskId);
+    });
+  });
+  
+  document.querySelectorAll('.delete-task-btn').forEach((btn) => {
+    btn.addEventListener("click", (e) => {
+      deleteTask(e.target.dataset.taskId);
     });
   });
 };
@@ -530,9 +600,125 @@ const analyzeTabs = async () => {
   }
 };
 
+const loadNotificationSettings = () => {
+  chrome.storage.local.get(["notificationSettings"], (result) => {
+    if (result.notificationSettings) {
+      notificationSettings = result.notificationSettings;
+    }
+    
+    // Update UI
+    elements.enableNotifications.checked = notificationSettings.enabled;
+    elements.distractionAlerts.checked = notificationSettings.distractionAlerts;
+    elements.breakReminders.checked = notificationSettings.breakReminders;
+    elements.deadlineReminders.checked = notificationSettings.deadlineReminders;
+    elements.taskNudges.checked = notificationSettings.taskNudges;
+    elements.focusDuration.value = notificationSettings.focusDuration;
+  });
+};
+
+const saveNotificationSettings = () => {
+  notificationSettings = {
+    enabled: elements.enableNotifications.checked,
+    distractionAlerts: elements.distractionAlerts.checked,
+    breakReminders: elements.breakReminders.checked,
+    deadlineReminders: elements.deadlineReminders.checked,
+    taskNudges: elements.taskNudges.checked,
+    focusDuration: parseInt(elements.focusDuration.value) || 45
+  };
+  
+  chrome.storage.local.set({ notificationSettings });
+  
+  // Request notification permission if enabled
+  if (notificationSettings.enabled) {
+    chrome.permissions.request({ permissions: ['notifications'] });
+  }
+};
+
+const testAllNotifications = async () => {
+  // Request notification permission first
+  const granted = await chrome.permissions.request({ permissions: ['notifications'] });
+  if (!granted) {
+    alert('Please enable notifications to test!');
+    return;
+  }
+  
+  // Test 1: Distraction Alert
+  setTimeout(() => {
+    chrome.notifications.create('test-distraction', {
+      type: 'basic',
+      iconUrl: chrome.runtime.getURL('assets/icon128.png'),
+      title: '🤔 Noticed you\'re switching tabs',
+      message: 'It seems you might be distracted. Consider returning to your task.',
+      priority: 2
+    });
+  }, 500);
+  
+  // Test 2: Break Reminder
+  setTimeout(() => {
+    chrome.notifications.create('test-break', {
+      type: 'basic',
+      iconUrl: chrome.runtime.getURL('assets/icon128.png'),
+      title: '⏰ Time for a break!',
+      message: 'You\'ve been focused for 45 minutes. Take a 5-minute break to recharge.',
+      buttons: [
+        { title: 'Take Break' },
+        { title: 'Keep Working' }
+      ],
+      priority: 2
+    });
+  }, 2000);
+  
+  // Test 3: Deadline Warning (24h)
+  setTimeout(() => {
+    chrome.notifications.create('test-deadline-24h', {
+      type: 'basic',
+      iconUrl: chrome.runtime.getURL('assets/icon128.png'),
+      title: '⚠️ Deadline Approaching',
+      message: 'Essay Assignment is due in 24 hours!',
+      priority: 2
+    });
+  }, 3500);
+  
+  // Test 4: Deadline Warning (1h)
+  setTimeout(() => {
+    chrome.notifications.create('test-deadline-1h', {
+      type: 'basic',
+      iconUrl: chrome.runtime.getURL('assets/icon128.png'),
+      title: '⚠️ Deadline Soon!',
+      message: 'Math Exam is due in 1 hour!',
+      priority: 2
+    });
+  }, 5000);
+  
+  // Test 5: Deadline Imminent (15m)
+  setTimeout(() => {
+    chrome.notifications.create('test-deadline-15m', {
+      type: 'basic',
+      iconUrl: chrome.runtime.getURL('assets/icon128.png'),
+      title: '🚨 Deadline Imminent!',
+      message: 'Project Submission is due in 15 minutes!',
+      priority: 2
+    });
+  }, 6500);
+  
+  // Test 6: Task Nudge
+  setTimeout(() => {
+    chrome.notifications.create('test-nudge', {
+      type: 'basic',
+      iconUrl: chrome.runtime.getURL('assets/icon128.png'),
+      title: '💡 Task Suggestion',
+      message: 'You just finished a video. Want to summarize key points?',
+      priority: 2
+    });
+  }, 8000);
+  
+  alert('Testing all notifications! You should see 6 notifications over the next 10 seconds.');
+};
+
 const init = async () => {
   loadTheme();
   loadTasks();
+  loadNotificationSettings();
   updateCurrentTask();
   const baseUrl = await ensureApiBaseUrl();
   elements.apiBaseUrl.value = baseUrl;
@@ -543,6 +729,15 @@ const init = async () => {
     await analyzeTabs();
     await detectTaskProgress();
   }, 30000);
+  
+  // Check theme every minute for auto mode
+  setInterval(() => {
+    chrome.storage.local.get(["theme"], (result) => {
+      if (result.theme === "auto") {
+        applyTheme("auto");
+      }
+    });
+  }, 60000); // Check every minute
 };
 
 
@@ -570,6 +765,10 @@ elements.lightThemeBtn.addEventListener("click", () => {
 
 elements.darkThemeBtn.addEventListener("click", () => {
   setTheme("dark");
+});
+
+elements.autoThemeBtn.addEventListener("click", () => {
+  setTheme("auto");
 });
 
 elements.openDashboardBtn.addEventListener("click", () => {
@@ -607,6 +806,17 @@ elements.typeExam.addEventListener("click", () => {
 elements.typeEvent.addEventListener("click", () => {
   setTaskType("event");
 });
+
+// Test notifications button
+elements.testNotificationsBtn.addEventListener("click", testAllNotifications);
+
+// Notification settings event listeners
+elements.enableNotifications.addEventListener("change", saveNotificationSettings);
+elements.distractionAlerts.addEventListener("change", saveNotificationSettings);
+elements.breakReminders.addEventListener("change", saveNotificationSettings);
+elements.deadlineReminders.addEventListener("change", saveNotificationSettings);
+elements.taskNudges.addEventListener("change", saveNotificationSettings);
+elements.focusDuration.addEventListener("change", saveNotificationSettings);
 
 /*
 elements.login.addEventListener("click", async () => {});

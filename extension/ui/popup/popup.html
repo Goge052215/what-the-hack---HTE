@@ -55,15 +55,19 @@
           <button id="typeEvent" class="task-type-btn" data-type="event">📅 Event</button>
         </div>
         
-        <label for="taskDeadline">Deadline</label>
-        <input id="taskDeadline" type="datetime-local" />
+        <label for="taskDeadlineDate">Deadline</label>
+        <div class="deadline-inputs">
+          <input id="taskDeadlineDate" type="date" placeholder="Select date" />
+          <input id="taskDeadlineTime" type="time" placeholder="Select time" />
+        </div>
         
-        <div class="calendar-option">
+        <!-- Google Calendar integration - Only works after Chrome Web Store publication -->
+        <!-- <div class="calendar-option">
           <label class="checkbox-label">
             <input id="addToCalendar" type="checkbox" />
             <span>📅 Add to Google Calendar</span>
           </label>
-        </div>
+        </div> -->
         
         <button id="saveTaskBtn" class="save-btn">Add Task</button>
       </div>
@@ -80,6 +84,7 @@
         <div class="theme-selector">
           <button id="lightThemeBtn" class="theme-option">☀️ Light</button>
           <button id="darkThemeBtn" class="theme-option">🌙 Dark</button>
+          <button id="autoThemeBtn" class="theme-option">🌗 Auto</button>
         </div>
         
         <div class="divider"></div>
@@ -87,6 +92,42 @@
         <label for="apiBaseUrl">API Base URL</label>
         <input id="apiBaseUrl" type="text" placeholder="http://localhost:5174" />
         <button id="saveApiBaseUrl">Save</button>
+        
+        <div class="divider"></div>
+        
+        <h3>Notifications</h3>
+        <button id="testNotificationsBtn" class="dashboard-btn" style="background: var(--warning);">🧪 Test All Notifications</button>
+        <div class="notification-settings">
+          <label class="checkbox-label">
+            <input id="enableNotifications" type="checkbox" checked />
+            <span>🔔 Enable Notifications</span>
+          </label>
+          
+          <label class="checkbox-label">
+            <input id="distractionAlerts" type="checkbox" checked />
+            <span>🤔 Distraction Alerts</span>
+          </label>
+          
+          <label class="checkbox-label">
+            <input id="breakReminders" type="checkbox" checked />
+            <span>⏰ Break Reminders</span>
+          </label>
+          
+          <label class="checkbox-label">
+            <input id="deadlineReminders" type="checkbox" checked />
+            <span>⚠️ Deadline Reminders</span>
+          </label>
+          
+          <label class="checkbox-label">
+            <input id="taskNudges" type="checkbox" checked />
+            <span>💡 Task Nudges</span>
+          </label>
+          
+          <div class="setting-row">
+            <label for="focusDuration">Focus Duration (minutes)</label>
+            <input id="focusDuration" type="number" min="15" max="120" value="45" />
+          </div>
+        </div>
         
         <div class="divider"></div>
         

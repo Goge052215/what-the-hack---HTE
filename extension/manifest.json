@@ -12,11 +12,12 @@
   "permissions": ["storage", "cookies", "activeTab", "tabs", "alarms", "notifications", "identity"],
   "host_permissions": ["http://localhost:5174/*", "http://127.0.0.1:5174/*", "https://www.googleapis.com/*"],
   "oauth2": {
-    "client_id": "YOUR_CLIENT_ID.apps.googleusercontent.com",
+    "client_id": "CHROME_WEB_STORE_WILL_PROVIDE_THIS",
     "scopes": [
       "https://www.googleapis.com/auth/calendar.events"
     ]
   },
+  "key": "CHROME_WEB_STORE_WILL_PROVIDE_THIS",
   "content_security_policy": {
     "extension_pages": "script-src 'self'; object-src 'self'"
   }
