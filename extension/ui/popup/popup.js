@@ -2049,7 +2049,7 @@ elements.taskDeadlineDate.addEventListener('click', () => {
 });
 
 // Custom Time Picker
-let selectedTime = { hour: 12, minute: 0, period: 'PM' };
+let selectedTime = { hour: 1, minute: 0, period: 'AM' };
 
 function initializeTimePicker() {
   // Generate hours (1-12)
