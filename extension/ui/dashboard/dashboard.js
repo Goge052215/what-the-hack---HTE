@@ -35,6 +35,11 @@ const elements = {
   sessionHistory: document.getElementById("sessionHistory"),
   aiInsights: document.getElementById("aiInsights"),
   aiInsightText: document.getElementById("aiInsightText"),
+  // Streak Elements
+  streakDisplay: document.getElementById("streakDisplay"),
+  streakIcon: document.getElementById("streakIcon"),
+  streakCount: document.getElementById("streakCount"),
+  streakMessage: document.getElementById("streakMessage"),
 };
 
 let tasks = [];
@@ -48,6 +53,11 @@ let dailyStats = {
 let sessionState = {
   startTime: null,
   isFocused: false,
+};
+let streakData = {
+  count: 0,
+  lastActiveDate: null,
+  isActive: false
 };
 
 const palettes = {
@@ -300,6 +310,59 @@ const addTask = async () => {
   renderTasks();
   updateInsights();
   elements.newTaskInput.value = "";
+};
+
+const loadStreak = () => {
+  return new Promise((resolve) => {
+    chrome.storage.local.get(["streakData"], (result) => {
+      const today = new Date().toDateString();
+      const yesterday = new Date(Date.now() - 86400000).toDateString();
+      
+      let data = result.streakData || { count: 0, lastActiveDate: null, isActive: false };
+      
+      // If last active date is today, do nothing (already counted)
+      if (data.lastActiveDate === today) {
+        // already active today
+      } 
+      // If last active date was yesterday, increment streak
+      else if (data.lastActiveDate === yesterday) {
+        data.count += 1;
+        data.lastActiveDate = today;
+        data.isActive = true;
+      } 
+      // If last active date was before yesterday, reset streak (but keep 1 for today)
+      else {
+        data.count = 1;
+        data.lastActiveDate = today;
+        data.isActive = true;
+      }
+
+      streakData = data;
+      chrome.storage.local.set({ streakData });
+      updateStreakUI();
+      resolve();
+    });
+  });
+};
+
+const updateStreakUI = () => {
+  if (!elements.streakDisplay) return;
+
+  const count = streakData.count;
+  const isFire = count >= 3;
+  
+  if (isFire) {
+    elements.streakIcon.textContent = "🔥";
+    elements.streakIcon.style.filter = "none";
+    elements.streakCount.textContent = `Streak: ${count} days`;
+    elements.streakMessage.textContent = "You're on fire! Keep it up!";
+  } else {
+    elements.streakIcon.textContent = "🔥";
+    elements.streakIcon.style.filter = "grayscale(100%)";
+    elements.streakCount.textContent = `Streak: ${count} days`;
+    const daysLeft = 3 - count;
+    elements.streakMessage.textContent = `${daysLeft} more day${daysLeft > 1 ? 's' : ''} to ignite the spark!`;
+  }
 };
 
 const loadDailyStats = () => {
@@ -683,10 +746,13 @@ const init = async () => {
   await loadTheme();
   await loadTasks();
   await loadDailyStats();
+  await loadStreak();
   await loadTimerSessions();
+  await analyzeTabs();
   
   // Refresh timer stats every 30 seconds
   setInterval(loadTimerSessions, 30000);
+  setInterval(analyzeTabs, 30000);
 };
 
 init();

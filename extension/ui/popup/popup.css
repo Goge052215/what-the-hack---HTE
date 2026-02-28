@@ -54,6 +54,41 @@ select {
   gap: 8px;
 }
 
+.header-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.popup-streak {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 8px;
+  background: var(--bg-secondary);
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text-primary);
+  cursor: help;
+  transition: all 0.2s ease;
+}
+
+.popup-streak:hover {
+  border-color: var(--accent);
+  background: var(--bg-tertiary);
+}
+
+.popup-streak span:first-child {
+  filter: grayscale(100%);
+  transition: filter 0.3s ease;
+}
+
+.popup-streak.active span:first-child {
+  filter: none;
+}
+
 .icon-btn {
   background: var(--bg-secondary);
   border: 1px solid var(--border);

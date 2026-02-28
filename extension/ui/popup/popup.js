@@ -19,6 +19,10 @@ const elements = {
   typeAssignment: document.getElementById("typeAssignment"),
   typeExam: document.getElementById("typeExam"),
   typeEvent: document.getElementById("typeEvent"),
+  // Streak Elements
+  popupStreak: document.getElementById("popupStreak"),
+  popupStreakIcon: document.getElementById("popupStreakIcon"),
+  popupStreakCount: document.getElementById("popupStreakCount"),
   addTaskBtn: document.getElementById("addTaskBtn"),
   saveTaskBtn: document.getElementById("saveTaskBtn"),
   currentTaskTitle: document.getElementById("currentTaskTitle"),
@@ -83,6 +87,12 @@ let notificationSettings = {
   deadlineReminders: true,
   taskNudges: true,
   focusDuration: 45
+};
+
+let streakData = {
+  count: 0,
+  lastActiveDate: null,
+  isActive: false
 };
 
 let timerState = {
@@ -521,6 +531,35 @@ const setTimerMode = (mode) => {
   
   applyTimerModeUI();
   resetTimer();
+};
+
+const loadStreak = () => {
+  return new Promise((resolve) => {
+    chrome.storage.local.get(["streakData"], (result) => {
+      // Just load data for display, dashboard handles the logic update
+      if (result.streakData) {
+        streakData = result.streakData;
+        updateStreakUI();
+      }
+      resolve();
+    });
+  });
+};
+
+const updateStreakUI = () => {
+  if (!elements.popupStreak) return;
+  
+  const count = streakData.count;
+  elements.popupStreakCount.textContent = count;
+  
+  if (count >= 3) {
+    elements.popupStreak.classList.add("active");
+    elements.popupStreak.title = `On fire! ${count} day streak!`;
+  } else {
+    elements.popupStreak.classList.remove("active");
+    const daysLeft = 3 - count;
+    elements.popupStreak.title = `${daysLeft} more day${daysLeft > 1 ? 's' : ''} to ignite!`;
+  }
 };
 
 const loadTheme = () => {

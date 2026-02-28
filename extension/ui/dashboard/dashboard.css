@@ -161,6 +161,47 @@ p {
   font-weight: 500;
 }
 
+.header-actions {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+
+.streak-display {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  transition: all 0.3s ease;
+}
+
+.streak-icon {
+  font-size: 18px;
+  filter: grayscale(100%);
+  transition: filter 0.3s ease;
+}
+
+.streak-info {
+  display: flex;
+  flex-direction: column;
+}
+
+.streak-count {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text-primary);
+  line-height: 1.2;
+}
+
+.streak-message {
+  font-size: 10px;
+  color: var(--text-secondary);
+  line-height: 1;
+}
+
 .theme-toggle {
   background: transparent;
   border: 1px solid var(--border);
