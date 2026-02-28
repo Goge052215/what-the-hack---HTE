@@ -131,8 +131,7 @@ chrome.runtime.onInstalled.addListener(() => {
       chrome.storage.local.set({ apiBaseUrl: defaultApiBaseUrl });
     }
   });
-  
-  // Set up alarms for periodic checks
+
   chrome.alarms.create("checkBreakReminder", { periodInMinutes: 1 });
   chrome.alarms.create("checkDeadlines", { periodInMinutes: 5 });
 });
@@ -140,43 +139,28 @@ chrome.runtime.onInstalled.addListener(() => {
 // Track tab switches for distraction detection
 chrome.tabs.onActivated.addListener(async (activeInfo) => {
   const settings = await getNotificationSettings();
-  
-  if (!settings.enabled || !settings.distractionAlerts) return;
-  
-  if (lastTabId && lastTabId !== activeInfo.tabId) {
-    tabSwitchCount++;
-    
-    // If user switches tabs 3+ times in 2 minutes, show distraction alert
-    if (tabSwitchCount >= 3) {
-      showNotification(
-        "distraction",
-        "👋 Hey! Get back to your task",
-        "You've been switching tabs a lot. Time to refocus on what matters!"
-      );
-      tabSwitchCount = 0;
-    }
-  }
-  
-  lastTabId = activeInfo.tabId;
-  
-  // Reset counter after 2 minutes
-  setTimeout(() => {
-    tabSwitchCount = 0;
-  }, 120000);
-});
 
-// Handle alarms for break reminders and deadline checks
-chrome.alarms.onAlarm.addListener(async (alarm) => {
-  const settings = await getNotificationSettings();
-  
-  if (!settings.enabled) return;
-  
-  if (alarm.name === "checkBreakReminder") {
-    await checkBreakReminder(settings);
-  } else if (alarm.name === "checkDeadlines") {
-    await checkDeadlines(settings);
+  if (settings.enabled && settings.distractionAlerts) {
+    if (lastTabId && lastTabId !== activeInfo.tabId) {
+      tabSwitchCount += 1;
+
+      if (tabSwitchCount >= 3) {
+        showNotification(
+          "distraction",
+          "👋 Hey! Get back to your task",
+          "You've been switching tabs a lot. Time to refocus on what matters!"
+        );
+        tabSwitchCount = 0;
+      }
+    }
+
+    lastTabId = activeInfo.tabId;
+    setTimeout(() => {
+      tabSwitchCount = 0;
+    }, 120000);
   }
-  chrome.idle.setDetectionInterval(300);
+
+  recordSession({ durationMin: 25, breakTaken: false });
 });
 
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
@@ -230,10 +214,6 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   return false;
 });
 
-chrome.tabs.onActivated.addListener(() => {
-  recordSession({ durationMin: 25, breakTaken: false });
-});
-
 chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
   if (changeInfo.status !== "complete") return;
   if (!tab?.active) return;
@@ -253,26 +233,34 @@ chrome.idle.onStateChanged.addListener((state) => {
   }
 });
 
-chrome.alarms.onAlarm.addListener((alarm) => {
+chrome.alarms.onAlarm.addListener(async (alarm) => {
   if (alarm?.name && alarm.name.startsWith("phase-")) {
-    getActiveSchedule().then((schedule) => {
-      if (!schedule?.blocks?.length) return;
-      const index = Number(alarm.name.replace("phase-", ""));
-      const block = schedule.blocks[index];
-      if (!block) return;
-      if (block.type === "focus") {
-        notify(
-          "Time to study",
-          `Focus block started: ${block.task || "Task"} — ${block.duration} min`
-        );
-        return;
-      }
-      notify("Time to rest", `Take a ${block.duration}-minute break.`);
-    });
+    const schedule = await getActiveSchedule();
+    if (!schedule?.blocks?.length) return;
+    const index = Number(alarm.name.replace("phase-", ""));
+    const block = schedule.blocks[index];
+    if (!block) return;
+    if (block.type === "focus") {
+      notify(
+        "Time to study",
+        `Focus block started: ${block.task || "Task"} — ${block.duration} min`
+      );
+      return;
+    }
+    notify("Time to rest", `Take a ${block.duration}-minute break.`);
     return;
   }
   if (alarm?.name && alarm.name.startsWith("break")) {
     recordSession({ durationMin: 10, breakTaken: true });
+    return;
+  }
+
+  const settings = await getNotificationSettings();
+  if (!settings.enabled) return;
+  if (alarm.name === "checkBreakReminder") {
+    await checkBreakReminder(settings);
+  } else if (alarm.name === "checkDeadlines") {
+    await checkDeadlines(settings);
   }
 });
 
@@ -293,6 +281,11 @@ async function getNotificationSettings() {
 }
 
 async function getTasks() {
+  const apiBaseUrl = await getApiBaseUrl();
+  const response = await fetchJson(`${apiBaseUrl}/api/tasks`, { method: "GET" });
+  if (response.ok && Array.isArray(response.data?.data)) {
+    return response.data.data;
+  }
   return new Promise((resolve) => {
     chrome.storage.local.get(["tasks"], (result) => {
       resolve(result.tasks || []);
@@ -352,25 +345,26 @@ async function checkDeadlines(settings) {
     const deadline = new Date(task.deadline);
     const timeUntilDeadline = deadline - now;
     const hoursUntil = timeUntilDeadline / (1000 * 60 * 60);
+    const taskLabel = task.description || task.title || "Task";
     
     // Notify at 24 hours, 1 hour, and 15 minutes before deadline
     if (hoursUntil <= 24 && hoursUntil > 23.9) {
       showNotification(
         `deadline-24h-${task.id}`,
         "📅 Don't forget!",
-        `Your ${task.description} is due tomorrow. Make sure you're on track!`
+        `Your ${taskLabel} is due tomorrow. Make sure you're on track!`
       );
     } else if (hoursUntil <= 1 && hoursUntil > 0.95) {
       showNotification(
         `deadline-1h-${task.id}`,
         "⏰ One hour left!",
-        `${task.description} is due in 1 hour. Time to wrap up and submit!`
+        `${taskLabel} is due in 1 hour. Time to wrap up and submit!`
       );
     } else if (hoursUntil <= 0.25 && hoursUntil > 0.2) {
       showNotification(
         `deadline-15m-${task.id}`,
         "🚨 Final warning!",
-        `${task.description} is due in 15 minutes! Submit now!`
+        `${taskLabel} is due in 15 minutes! Submit now!`
       );
     }
   });

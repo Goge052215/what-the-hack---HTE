@@ -248,19 +248,41 @@ const extractTokens = (text) => {
   return Array.from(new Set(tokens));
 };
 
-const findHits = (text, keywords) =>
-  keywords.filter((keyword) => text.includes(keyword));
+const splitKeywords = (keywords, excludeSet) => {
+  const singles = [];
+  const phrases = [];
+  keywords.forEach((keyword) => {
+    if (excludeSet?.has(keyword)) return;
+    if (keyword.includes(" ")) phrases.push(keyword);
+    else singles.push(keyword);
+  });
+  return { singles, phrases };
+};
 
-const countWeightedHits = (text, keywords, weight = 1) =>
-  keywords.reduce((sum, keyword) => sum + (text.includes(keyword) ? weight : 0), 0);
+const matchKeywords = (contextText, contextTokens, keywordSet) => {
+  const hits = [];
+  keywordSet.singles.forEach((keyword) => {
+    if (contextTokens.has(keyword)) hits.push(keyword);
+  });
+  keywordSet.phrases.forEach((keyword) => {
+    if (contextText.includes(keyword)) hits.push(keyword);
+  });
+  return hits;
+};
 
-const containsAny = (text, keywords) => keywords.some((keyword) => text.includes(keyword));
+const countWeightedHits = (hits, weight = 1) => hits.length * weight;
+
+const containsAny = (contextText, contextTokens, keywords) =>
+  keywords.some((keyword) =>
+    keyword.includes(" ") ? contextText.includes(keyword) : contextTokens.has(keyword)
+  );
 
 const scoreRelevance = ({ goal, context }) => {
   const goalText = normalizeText(goal);
   const contextText = normalizeText(context);
   const goalTokens = extractTokens(goalText);
-  const matchedKeywords = goalTokens.filter((token) => contextText.includes(token));
+  const contextTokens = new Set(extractTokens(contextText));
+  const matchedKeywords = goalTokens.filter((token) => contextTokens.has(token));
 
   let semanticScore = 0;
   if (goalTokens.length > 0) {
@@ -269,15 +291,20 @@ const scoreRelevance = ({ goal, context }) => {
     semanticScore = 1;
   }
 
-  const eduHits = findHits(contextText, EDU_KEYWORDS);
-  const entertainmentHits = findHits(contextText, ENTERTAINMENT_KEYWORDS);
-  const productivityHits = findHits(contextText, PRODUCTIVITY_KEYWORDS);
-  const socialHits = findHits(contextText, SOCIAL_KEYWORDS);
+  const eduSet = splitKeywords(EDU_KEYWORDS);
+  const productivitySet = splitKeywords(PRODUCTIVITY_KEYWORDS, new Set(EDU_KEYWORDS));
+  const entertainmentSet = splitKeywords(ENTERTAINMENT_KEYWORDS);
+  const socialSet = splitKeywords(SOCIAL_KEYWORDS);
 
-  const eduWeight = countWeightedHits(contextText, EDU_KEYWORDS, 1.1);
-  const entertainmentWeight = countWeightedHits(contextText, ENTERTAINMENT_KEYWORDS, 1.1);
-  const productivityWeight = countWeightedHits(contextText, PRODUCTIVITY_KEYWORDS, 0.6);
-  const socialWeight = countWeightedHits(contextText, SOCIAL_KEYWORDS, 0.8);
+  const eduHits = matchKeywords(contextText, contextTokens, eduSet);
+  const entertainmentHits = matchKeywords(contextText, contextTokens, entertainmentSet);
+  const productivityHits = matchKeywords(contextText, contextTokens, productivitySet);
+  const socialHits = matchKeywords(contextText, contextTokens, socialSet);
+
+  const eduWeight = countWeightedHits(eduHits, 1.1);
+  const entertainmentWeight = countWeightedHits(entertainmentHits, 1.1);
+  const productivityWeight = countWeightedHits(productivityHits, 0.6);
+  const socialWeight = countWeightedHits(socialHits, 0.8);
 
   let relevanceScore = semanticScore;
   relevanceScore += Math.min(0.25, eduWeight * 0.03);
@@ -285,14 +312,14 @@ const scoreRelevance = ({ goal, context }) => {
   relevanceScore -= Math.min(0.4, entertainmentWeight * 0.04);
   relevanceScore -= Math.min(0.25, socialWeight * 0.03);
 
-  if (contextText.includes("youtube")) {
+  if (contextTokens.has("youtube")) {
     if (eduHits.length > 0 && matchedKeywords.length > 0) relevanceScore += 0.1;
     if (entertainmentHits.length > 0 && matchedKeywords.length === 0) relevanceScore -= 0.1;
   }
-  if (contextText.includes("github") || contextText.includes("stackoverflow")) {
+  if (contextTokens.has("github") || contextTokens.has("stackoverflow")) {
     relevanceScore += 0.08;
   }
-  if (containsAny(contextText, ["playlist", "shorts", "trailer", "reaction"])) {
+  if (containsAny(contextText, contextTokens, ["playlist", "shorts", "trailer", "reaction"])) {
     relevanceScore -= 0.08;
   }
 

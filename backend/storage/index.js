@@ -51,9 +51,19 @@ const addSchedule = (userId, items) => {
   return schedule;
 };
 
+const MAX_ANALYSES_PER_USER = 2000;
+
 const addAnalysis = (userId, result) => {
   const analysis = { id: generateId(), userId, result, createdAt: now() };
   store.analyses.push(analysis);
+  const userItems = store.analyses.filter((item) => item.userId === userId);
+  if (userItems.length > MAX_ANALYSES_PER_USER) {
+    const sorted = userItems.slice().sort((a, b) => a.createdAt - b.createdAt);
+    const cutoff = sorted[sorted.length - MAX_ANALYSES_PER_USER]?.createdAt;
+    store.analyses = store.analyses.filter(
+      (item) => item.userId !== userId || item.createdAt >= cutoff
+    );
+  }
   return analysis;
 };
 

@@ -4,6 +4,7 @@ const { isNonEmptyString } = require("../../shared/utils/validation");
 const { startOfDay, getHour } = require("../../shared/utils/time");
 
 const MAX_GAP_MIN = 5;
+const DAY_PARAM_REGEX = /^\d{4}-\d{2}-\d{2}$/;
 
 const getLatestGoal = (userId, bodyGoal) => {
   if (isNonEmptyString(bodyGoal)) return bodyGoal.trim();
@@ -142,7 +143,13 @@ const handleAnalyze = (req, res, ctx) => {
     const user = ctx.requireAuth(req, res);
     if (!user) return true;
     const dayParam = parsedUrl.searchParams.get("day");
+    if (dayParam && !DAY_PARAM_REGEX.test(dayParam)) {
+      return ctx.sendJson(res, 400, { ok: false, error: "invalid_day" });
+    }
     const dayDate = dayParam ? new Date(`${dayParam}T00:00:00`) : new Date();
+    if (Number.isNaN(dayDate.getTime())) {
+      return ctx.sendJson(res, 400, { ok: false, error: "invalid_day" });
+    }
     const dayStart = startOfDay(dayDate).getTime();
     const dayEnd = startOfDay(dayStart + 86400000).getTime();
     const analyses = store.listAnalyses(user.id) || [];
