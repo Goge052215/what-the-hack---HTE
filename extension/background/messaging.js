@@ -9,7 +9,8 @@ FocusPet.MessageTypes = {
   START_SESSION: "START_SESSION",
   END_SESSION: "END_SESSION",
   GET_STATUS: "GET_STATUS",
-  FOCUS_RESULT: "FOCUS_RESULT"
+  FOCUS_RESULT: "FOCUS_RESULT",
+  WORK_RELAX_STATUS: "WORK_RELAX_STATUS"
 };
 
 FocusPet.Messaging = {
@@ -92,6 +93,7 @@ FocusPet.Messaging = {
       };
       return FocusPet.Storage.setCurrentSession(session).then(function () {
         FocusPet.Alarms.startFocusSession(session.durationMins);
+        FocusPet.Messaging.sendWorkRelaxStatus("work");
         return { session: session };
       });
     });
@@ -115,11 +117,13 @@ FocusPet.Messaging = {
                 });
               }
               FocusPet.Alarms.cancelAllAlarms();
+              FocusPet.Messaging.sendWorkRelaxStatus("relax");
               return { session: session };
             });
           });
         }
         FocusPet.Alarms.cancelAllAlarms();
+        FocusPet.Messaging.sendWorkRelaxStatus("relax");
         return { session: null };
       });
     });
@@ -167,6 +171,16 @@ FocusPet.Messaging = {
           resolve(response.payload);
         });
       });
+    });
+  },
+  sendWorkRelaxStatus: function (state) {
+    if (state !== "work" && state !== "relax") return;
+    var payload = { state: state, timestamp: Date.now() };
+    chrome.runtime.sendMessage({ type: FocusPet.MessageTypes.WORK_RELAX_STATUS, payload: payload });
+    chrome.tabs.query({ active: true, currentWindow: true }, function (tabs) {
+      var tab = tabs && tabs[0];
+      if (!tab || !tab.id) return;
+      chrome.tabs.sendMessage(tab.id, { type: FocusPet.MessageTypes.WORK_RELAX_STATUS, payload: payload });
     });
   },
 

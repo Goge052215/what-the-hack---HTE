@@ -658,6 +658,12 @@ const saveTraitSnapshot = async () => {
 
 const exportTraitCsv = async () => {
   if (!elements.exportTraitCsvBtn) return;
+  if (!chrome.downloads?.download) {
+    if (elements.exportTraitStatus) {
+      elements.exportTraitStatus.textContent = "Downloads permission unavailable.";
+    }
+    return;
+  }
   const originalText = elements.exportTraitCsvBtn.textContent;
   elements.exportTraitCsvBtn.disabled = true;
   elements.exportTraitCsvBtn.textContent = "Exporting...";

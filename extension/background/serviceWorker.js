@@ -3,6 +3,9 @@ importScripts("storage.js", "messaging.js", "alarms.js");
 const hostedApiBaseUrl = "https://api.focus-tutor.app";
 const localApiBaseUrl = "http://localhost:5174";
 const notificationIcon = chrome.runtime.getURL("icons/icon48.png");
+const aiSuggestionAlarmName = "ai-suggestion-refresh";
+const aiSuggestionRefreshMinutes = 15;
+const aiSuggestionMaxAgeMs = 6 * 60 * 60 * 1000;
 
 const getStored = (keys) =>
   new Promise((resolve) => {
@@ -42,6 +45,111 @@ const fetchApiJson = async (path, options = {}) => {
     return fetchJson(`${localApiBaseUrl}${path}`, options);
   }
   return primary;
+};
+
+const getLocalTasks = async () => {
+  const stored = await getStored(["tasks"]);
+  return Array.isArray(stored.tasks) ? stored.tasks : [];
+};
+
+const saveLocalTasks = async (tasks) => {
+  await setStored({ tasks });
+};
+
+const buildLocalSuggestionSlots = ({ type, deadline }) => {
+  const base = deadline ? new Date(deadline) : new Date(Date.now() + 2 * 60 * 60 * 1000);
+  const isValidBase = !Number.isNaN(base.getTime());
+  const anchor = isValidBase ? base : new Date(Date.now() + 2 * 60 * 60 * 1000);
+  const addHours = (date, hours) => new Date(date.getTime() + hours * 60 * 60 * 1000);
+  if (type === "exam") {
+    return [
+      { title: "Exam revision session", start: addHours(anchor, -120).toISOString(), durationMin: 60 },
+      { title: "Practice exam questions", start: addHours(anchor, -48).toISOString(), durationMin: 45 },
+      { title: "Final review checklist", start: addHours(anchor, -24).toISOString(), durationMin: 30 },
+    ];
+  }
+  if (type === "assignment") {
+    return [
+      { title: "Practice after class", start: addHours(anchor, -72).toISOString(), durationMin: 45 },
+      { title: "Midway check-in", start: addHours(anchor, -36).toISOString(), durationMin: 30 },
+      { title: "Final polish", start: addHours(anchor, -12).toISOString(), durationMin: 30 },
+    ];
+  }
+  return [
+    { title: "Relaxation break", start: addHours(anchor, 1).toISOString(), durationMin: 20 },
+    { title: "Follow-up session", start: addHours(anchor, 24).toISOString(), durationMin: 30 },
+    { title: "Quick review", start: addHours(anchor, 48).toISOString(), durationMin: 30 },
+  ];
+};
+
+const shouldRefreshAiSuggestions = (task, now = Date.now()) => {
+  if (!task || task.completed) return false;
+  const slots = Array.isArray(task.aiSuggestionSlots) ? task.aiSuggestionSlots : [];
+  if (slots.length === 0) return true;
+  const stamp = new Date(task.aiSuggestionUpdatedAt || task.aiSuggestionRequestedAt || 0).getTime();
+  if (!Number.isFinite(stamp) || stamp <= 0) return false;
+  return now - stamp > aiSuggestionMaxAgeMs;
+};
+
+const requestAiSuggestions = async (task) => {
+  const response = await fetchApiJson("/api/analyze/schedule-suggestions", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      task: {
+        description: task.description,
+        type: task.type,
+        deadline: task.deadline,
+      },
+    }),
+  });
+  if (response.ok && Array.isArray(response.data?.suggestions)) {
+    return {
+      slots: response.data.suggestions.slice(0, 5),
+      source: response.data?.source || "minimax",
+    };
+  }
+  return null;
+};
+
+const refreshAiSuggestionsForTasks = async () => {
+  const tasks = await getLocalTasks();
+  if (!tasks.length) return;
+  const now = Date.now();
+  let changed = false;
+  for (const task of tasks) {
+    if (!shouldRefreshAiSuggestions(task, now)) continue;
+    task.aiSuggestionRequested = true;
+    task.aiSuggestionRequestedAt = new Date(now).toISOString();
+    const existingSlots = Array.isArray(task.aiSuggestionSlots) ? task.aiSuggestionSlots : [];
+    const response = await requestAiSuggestions(task);
+    if (response && response.slots.length > 0) {
+      task.aiSuggestionSlots = response.slots;
+      task.aiSuggestionSource = response.source;
+      task.aiSuggestionUpdatedAt = new Date().toISOString();
+      changed = true;
+      continue;
+    }
+    if (existingSlots.length === 0) {
+      task.aiSuggestionSlots = buildLocalSuggestionSlots({
+        type: task?.type,
+        deadline: task?.deadline,
+      });
+      task.aiSuggestionSource = "local";
+      task.aiSuggestionUpdatedAt = new Date().toISOString();
+      changed = true;
+    }
+  }
+  if (changed) {
+    await saveLocalTasks(tasks);
+  }
+};
+
+const ensureAiSuggestionAlarm = () => {
+  chrome.alarms.get(aiSuggestionAlarmName, (alarm) => {
+    if (alarm) return;
+    chrome.alarms.create(aiSuggestionAlarmName, { periodInMinutes: aiSuggestionRefreshMinutes });
+  });
 };
 
 const notify = (title, message) => {
@@ -141,6 +249,40 @@ const clearTimerAlarms = async () => {
     .forEach((alarm) => chrome.alarms.clear(alarm.name));
 };
 
+const focusStartTimeKey = "focusStartTime";
+const breakStartTimeKey = "breakStartTime";
+
+const getStoredValue = async (key) => {
+  const result = await getStored([key]);
+  return result[key] ?? null;
+};
+
+const setStoredValue = async (key, value) => {
+  await setStored({ [key]: value });
+};
+
+const setFocusStartTime = async (value) => {
+  focusStartTime = value;
+  await setStoredValue(focusStartTimeKey, value);
+};
+
+const getFocusStartTime = async () => {
+  if (typeof focusStartTime === "number") return focusStartTime;
+  const stored = await getStoredValue(focusStartTimeKey);
+  return typeof stored === "number" ? stored : null;
+};
+
+const setBreakStartTime = async (value) => {
+  breakStartTime = value;
+  await setStoredValue(breakStartTimeKey, value);
+};
+
+const getBreakStartTime = async () => {
+  if (typeof breakStartTime === "number") return breakStartTime;
+  const stored = await getStoredValue(breakStartTimeKey);
+  return typeof stored === "number" ? stored : null;
+};
+
 let focusStartTime = null;
 let lastTabId = null;
 let tabSwitchCount = 0;
@@ -156,6 +298,13 @@ chrome.runtime.onInstalled.addListener(() => {
 
   chrome.alarms.create("checkBreakReminder", { periodInMinutes: 1 });
   chrome.alarms.create("checkDeadlines", { periodInMinutes: 5 });
+  ensureAiSuggestionAlarm();
+  refreshAiSuggestionsForTasks();
+});
+
+chrome.runtime.onStartup.addListener(() => {
+  ensureAiSuggestionAlarm();
+  refreshAiSuggestionsForTasks();
 });
 
 // Track tab switches for distraction detection
@@ -225,12 +374,12 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     return true;
   }
   if (message?.type === "startFocusSession") {
-    focusStartTime = Date.now();
-    sendResponse({ ok: true });
+    setFocusStartTime(Date.now()).then(() => sendResponse({ ok: true }));
+    return true;
   }
   if (message?.type === "endFocusSession") {
-    focusStartTime = null;
-    sendResponse({ ok: true });
+    setFocusStartTime(null).then(() => sendResponse({ ok: true }));
+    return true;
   }
   if (message?.type === "scheduleTimerAlarm") {
     const remainingMs = Number(message.remainingMs);
@@ -262,20 +411,26 @@ chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
   recordSession({ durationMin: 25, breakTaken: false });
 });
 
-chrome.idle.onStateChanged.addListener((state) => {
-  if (state === "idle" || state === "locked") {
-    recordSession({ durationMin: 5, breakTaken: true });
-    getActiveSchedule().then((schedule) => {
-      if (!schedule?.blocks?.length) return;
-      const msg = getCurrentPhaseMessage(schedule.blocks);
-      if (msg.type === "study") {
-        notify("You've relaxed too long", "Back to work for this focus block.");
-      }
-    });
-  }
-});
+if (chrome.idle?.onStateChanged) {
+  chrome.idle.onStateChanged.addListener((state) => {
+    if (state === "idle" || state === "locked") {
+      recordSession({ durationMin: 5, breakTaken: true });
+      getActiveSchedule().then((schedule) => {
+        if (!schedule?.blocks?.length) return;
+        const msg = getCurrentPhaseMessage(schedule.blocks);
+        if (msg.type === "study") {
+          notify("You've relaxed too long", "Back to work for this focus block.");
+        }
+      });
+    }
+  });
+}
 
 chrome.alarms.onAlarm.addListener(async (alarm) => {
+  if (alarm?.name === aiSuggestionAlarmName) {
+    await refreshAiSuggestionsForTasks();
+    return;
+  }
   if (alarm?.name && alarm.name.startsWith("timer-complete-")) {
     const settings = await getNotificationSettings();
     if (!settings.enabled) return;
@@ -295,6 +450,14 @@ chrome.alarms.onAlarm.addListener(async (alarm) => {
       phase === "focus" ? "Focus Session Complete!" : "Break Complete!",
       phase === "focus" ? "Time for a break!" : "Ready to focus again?"
     );
+    if (FocusPet?.Messaging?.sendWorkRelaxStatus) {
+      FocusPet.Messaging.sendWorkRelaxStatus(phase === "focus" ? "relax" : "work");
+    } else {
+      chrome.runtime.sendMessage({
+        type: "WORK_RELAX_STATUS",
+        payload: { state: phase === "focus" ? "relax" : "work", timestamp: Date.now() },
+      });
+    }
     return;
   }
   if (alarm?.name && alarm.name.startsWith("phase-")) {
@@ -314,13 +477,14 @@ chrome.alarms.onAlarm.addListener(async (alarm) => {
     return;
   }
   if (alarm?.name === "break-return") {
-    if (!breakStartTime) return;
+    const storedBreakStart = await getBreakStartTime();
+    if (!storedBreakStart) return;
     showNotification(
       "return-to-work",
       "🎯 Break's over!",
       "Time to get back to work. You're refreshed and ready to focus!"
     );
-    breakStartTime = null;
+    await setBreakStartTime(null);
     return;
   }
   if (alarm?.name && alarm.name.startsWith("break")) {
@@ -382,12 +546,11 @@ function showNotification(id, title, message, buttons = []) {
 }
 
 async function checkBreakReminder(settings) {
-  if (!settings.breakReminders || !focusStartTime) return;
-  
+  if (!settings.breakReminders) return;
+  const storedFocusStart = await getFocusStartTime();
+  if (!storedFocusStart) return;
   const focusDurationMs = settings.focusDuration * 60 * 1000;
-  const elapsed = Date.now() - focusStartTime;
-  
-  // Show break reminder when focus duration is reached
+  const elapsed = Date.now() - storedFocusStart;
   if (elapsed >= focusDurationMs && elapsed < focusDurationMs + 60000) {
     showNotification(
       "break-reminder",
@@ -442,15 +605,13 @@ async function checkDeadlines(settings) {
 chrome.notifications.onButtonClicked.addListener((notificationId, buttonIndex) => {
   if (notificationId === "break-reminder") {
     if (buttonIndex === 0) {
-      // Take Break
-      focusStartTime = null;
-      breakStartTime = Date.now();
+      setFocusStartTime(null);
+      setBreakStartTime(Date.now());
       chrome.notifications.clear(notificationId);
       chrome.alarms.create("break-return", { delayInMinutes: breakDuration / 60000 });
     } else if (buttonIndex === 1) {
-      // Keep Working - reset timer
-      focusStartTime = Date.now();
-      breakStartTime = null;
+      setFocusStartTime(Date.now());
+      setBreakStartTime(null);
       chrome.notifications.clear(notificationId);
     }
   }

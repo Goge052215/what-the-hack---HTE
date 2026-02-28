@@ -14,9 +14,8 @@ export const setApiBaseUrl = (apiBaseUrl) =>
   });
 
 const fetchPayload = async (baseUrl, path, options = {}) => {
-  let response;
   try {
-    response = await fetch(`${baseUrl}${path}`, {
+    const response = await fetch(`${baseUrl}${path}`, {
       method: options.method || "GET",
       headers: {
         "Content-Type": "application/json",
@@ -25,14 +24,14 @@ const fetchPayload = async (baseUrl, path, options = {}) => {
       body: options.body ? JSON.stringify(options.body) : undefined,
       credentials: "include",
     });
+    const payload = await response.json().catch(() => null);
+    if (!payload) {
+      return { ok: false, status: response.status, error: "invalid_response" };
+    }
+    return { ok: response.ok && payload.ok !== false, status: response.status, ...payload };
   } catch {
     return { ok: false, status: 0, error: "network_error" };
   }
-  const payload = await response.json().catch(() => null);
-  if (!payload) {
-    return { ok: false, status: response.status, error: "invalid_response" };
-  }
-  return { ok: response.ok && payload.ok !== false, status: response.status, ...payload };
 };
 
 export const apiRequest = async (path, options = {}) => {

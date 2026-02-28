@@ -30,7 +30,7 @@
       "run_at": "document_idle"
     }
   ],
-  "permissions": ["storage", "cookies", "activeTab", "tabs", "alarms", "notifications", "identity", "downloads"],
+  "permissions": ["storage", "cookies", "activeTab", "tabs", "alarms", "notifications", "identity", "downloads", "idle"],
   "host_permissions": [
     "<all_urls>",
     "http://localhost:5174/*",

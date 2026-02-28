@@ -93,6 +93,12 @@ const elements = {
   applyCustomColor: document.getElementById("applyCustomColor"),
 };
 
+const bind = (element, event, handler) => {
+  if (element?.addEventListener) {
+    element.addEventListener(event, handler);
+  }
+};
+
 let tasks = [];
 let currentTaskIndex = 0;
 let selectedTaskType = "assignment";
@@ -687,16 +693,16 @@ const applyTheme = (theme) => {
   }
   
   // Update button states
-  elements.lightThemeBtn.classList.remove("active");
-  elements.darkThemeBtn.classList.remove("active");
-  elements.autoThemeBtn.classList.remove("active");
+  elements.lightThemeBtn?.classList.remove("active");
+  elements.darkThemeBtn?.classList.remove("active");
+  elements.autoThemeBtn?.classList.remove("active");
   
   if (theme === "light") {
-    elements.lightThemeBtn.classList.add("active");
+    elements.lightThemeBtn?.classList.add("active");
   } else if (theme === "dark") {
-    elements.darkThemeBtn.classList.add("active");
+    elements.darkThemeBtn?.classList.add("active");
   } else if (theme === "auto") {
-    elements.autoThemeBtn.classList.add("active");
+    elements.autoThemeBtn?.classList.add("active");
   }
   
   // Reapply palette colors for the new theme
@@ -1294,16 +1300,18 @@ const importTasksFromGoogleCalendar = async () => {
 
 const setTaskType = (type) => {
   selectedTaskType = normalizeTaskType(type);
-  [elements.typeAssignment, elements.typeExam, elements.typeTask].forEach((btn) => {
-    btn.classList.remove("active");
-  });
+  [elements.typeAssignment, elements.typeExam, elements.typeTask]
+    .filter(Boolean)
+    .forEach((btn) => {
+      btn.classList.remove("active");
+    });
   
   if (selectedTaskType === "assignment") {
-    elements.typeAssignment.classList.add("active");
+    elements.typeAssignment?.classList.add("active");
   } else if (selectedTaskType === "exam") {
-    elements.typeExam.classList.add("active");
+    elements.typeExam?.classList.add("active");
   } else {
-    elements.typeTask.classList.add("active");
+    elements.typeTask?.classList.add("active");
   }
 };
 
@@ -2006,7 +2014,9 @@ const init = async () => {
   await loadCalendarSelection();
   await loadCalendarList();
   const baseUrl = await ensureApiBaseUrl();
-  elements.apiBaseUrl.value = baseUrl;
+  if (elements.apiBaseUrl) {
+    elements.apiBaseUrl.value = baseUrl;
+  }
   await analyzeTabs();
   
   // Run tab analysis and progress detection every 30 seconds
@@ -2026,100 +2036,92 @@ const init = async () => {
 };
 
 
-elements.saveApiBaseUrl.addEventListener("click", async () => {
+bind(elements.saveApiBaseUrl, "click", async () => {
   const value = elements.apiBaseUrl.value.trim();
   if (!value) return;
   await setApiBaseUrl(value);
 });
 
-elements.addTaskBtn.addEventListener("click", () => {
+bind(elements.addTaskBtn, "click", () => {
   togglePanel(elements.addTaskPanel);
 });
 
-elements.saveTaskBtn.addEventListener("click", addTask);
+bind(elements.saveTaskBtn, "click", addTask);
 
-elements.taskInput.addEventListener("keypress", (e) => {
+bind(elements.taskInput, "keypress", (e) => {
   if (e.key === "Enter") {
     addTask();
   }
 });
 
-elements.lightThemeBtn.addEventListener("click", () => {
+bind(elements.lightThemeBtn, "click", () => {
   setTheme("light");
 });
 
-elements.darkThemeBtn.addEventListener("click", () => {
+bind(elements.darkThemeBtn, "click", () => {
   setTheme("dark");
 });
 
-elements.autoThemeBtn.addEventListener("click", () => {
+bind(elements.autoThemeBtn, "click", () => {
   setTheme("auto");
 });
 
-elements.openDashboardBtn.addEventListener("click", () => {
+bind(elements.openDashboardBtn, "click", () => {
   chrome.tabs.create({ url: chrome.runtime.getURL("ui/dashboard/dashboard.html") });
 });
 
-if (elements.exportCalendarBtn) {
-  elements.exportCalendarBtn.addEventListener("click", exportTasksToGoogleCalendar);
-}
-if (elements.importCalendarBtn) {
-  elements.importCalendarBtn.addEventListener("click", importTasksFromGoogleCalendar);
-}
-if (elements.calendarSelect) {
-  elements.calendarSelect.addEventListener("change", () => {
-    const selectedId = getSelectedCalendarId();
-    chrome.storage.local.set({ [CALENDAR_STORAGE_KEY]: selectedId });
-    setCalendarStatus(`Selected calendar: ${elements.calendarSelect.options[elements.calendarSelect.selectedIndex]?.textContent || "Primary"}`);
-  });
-}
-if (elements.aiSuggestBtn) {
-  elements.aiSuggestBtn.addEventListener("click", () => {
-    const activeTask = tasks.find((task) => !task.completed);
-    if (!activeTask) return;
-    fetchAiSuggestions(activeTask, true);
-  });
-}
+bind(elements.exportCalendarBtn, "click", exportTasksToGoogleCalendar);
+bind(elements.importCalendarBtn, "click", importTasksFromGoogleCalendar);
+bind(elements.calendarSelect, "change", () => {
+  const selectedId = getSelectedCalendarId();
+  chrome.storage.local.set({ [CALENDAR_STORAGE_KEY]: selectedId });
+  setCalendarStatus(`Selected calendar: ${elements.calendarSelect.options[elements.calendarSelect.selectedIndex]?.textContent || "Primary"}`);
+});
+bind(elements.aiSuggestBtn, "click", () => {
+  const activeTask = tasks.find((task) => !task.completed);
+  if (!activeTask) return;
+  fetchAiSuggestions(activeTask, true);
+});
 
-elements.settingsBtn.addEventListener("click", () => {
+bind(elements.settingsBtn, "click", () => {
   togglePanel(elements.settingsPanel);
 });
 
-elements.taskListBtn.addEventListener("click", () => {
+bind(elements.taskListBtn, "click", () => {
   togglePanel(elements.taskListPanel);
 });
 
-elements.statusNotStarted.addEventListener("click", () => {
+bind(elements.statusNotStarted, "click", () => {
   setTaskStatus("not-started");
 });
 
-elements.statusOngoing.addEventListener("click", () => {
+bind(elements.statusOngoing, "click", () => {
   setTaskStatus("ongoing");
 });
 
-elements.statusCompleted.addEventListener("click", () => {
+bind(elements.statusCompleted, "click", () => {
   setTaskStatus("completed");
 });
 
-elements.typeAssignment.addEventListener("click", () => {
+bind(elements.typeAssignment, "click", () => {
   setTaskType("assignment");
 });
 
-elements.typeExam.addEventListener("click", () => {
+bind(elements.typeExam, "click", () => {
   setTaskType("exam");
 });
 
-elements.typeTask.addEventListener("click", () => {
+bind(elements.typeTask, "click", () => {
   setTaskType("task");
 });
 
 // Notification settings event listeners
-elements.enableNotifications.addEventListener("change", saveNotificationSettings);
-elements.distractionAlerts.addEventListener("change", saveNotificationSettings);
-elements.breakReminders.addEventListener("change", saveNotificationSettings);
-elements.deadlineReminders.addEventListener("change", saveNotificationSettings);
-elements.taskNudges.addEventListener("change", saveNotificationSettings);
-elements.focusDuration.addEventListener("change", saveNotificationSettings);
+bind(elements.enableNotifications, "change", saveNotificationSettings);
+bind(elements.distractionAlerts, "change", saveNotificationSettings);
+bind(elements.breakReminders, "change", saveNotificationSettings);
+bind(elements.deadlineReminders, "change", saveNotificationSettings);
+bind(elements.taskNudges, "change", saveNotificationSettings);
+bind(elements.focusDuration, "change", saveNotificationSettings);
 
 // Palette selection event listeners
 document.querySelectorAll(".palette-dot-btn").forEach((btn) => {
@@ -2132,28 +2134,28 @@ document.querySelectorAll(".palette-dot-btn").forEach((btn) => {
 });
 
 // Timer event listeners
-elements.timerStartBtn.addEventListener("click", startTimer);
-elements.timerPauseBtn.addEventListener("click", pauseTimer);
-elements.timerSkipBtn.addEventListener("click", skipBreak);
-elements.timerResetBtn.addEventListener("click", resetTimer);
+bind(elements.timerStartBtn, "click", startTimer);
+bind(elements.timerPauseBtn, "click", pauseTimer);
+bind(elements.timerSkipBtn, "click", skipBreak);
+bind(elements.timerResetBtn, "click", resetTimer);
 
-elements.pomodoroModeBtn.addEventListener("click", () => setTimerMode("pomodoro"));
-elements.customModeBtn.addEventListener("click", () => setTimerMode("custom"));
+bind(elements.pomodoroModeBtn, "click", () => setTimerMode("pomodoro"));
+bind(elements.customModeBtn, "click", () => setTimerMode("custom"));
 
 // Timer config change listeners
-elements.pomodoroFocus.addEventListener("change", saveTimerConfig);
-elements.pomodoroBreak.addEventListener("change", saveTimerConfig);
-elements.pomodoroLongBreak.addEventListener("change", saveTimerConfig);
-elements.customFocus.addEventListener("change", saveTimerConfig);
-elements.customBreak.addEventListener("change", saveTimerConfig);
+bind(elements.pomodoroFocus, "change", saveTimerConfig);
+bind(elements.pomodoroBreak, "change", saveTimerConfig);
+bind(elements.pomodoroLongBreak, "change", saveTimerConfig);
+bind(elements.customFocus, "change", saveTimerConfig);
+bind(elements.customBreak, "change", saveTimerConfig);
 
 // Custom color picker event listeners
-elements.customColorBtn.addEventListener("click", () => {
+bind(elements.customColorBtn, "click", () => {
   const isVisible = elements.colorPickerPanel.style.display === "flex";
   elements.colorPickerPanel.style.display = isVisible ? "none" : "flex";
 });
 
-elements.applyCustomColor.addEventListener("click", () => {
+bind(elements.applyCustomColor, "click", () => {
   const selectedColor = elements.colorPicker.value;
   generateCustomPalette(selectedColor);
   setPalette("custom");
@@ -2251,17 +2253,17 @@ function getDateValue() {
   return `${year}-${month}-${day}`;
 }
 
-elements.prevMonth.addEventListener('click', () => {
+bind(elements.prevMonth, 'click', () => {
   currentDate.setMonth(currentDate.getMonth() - 1);
   renderCalendar();
 });
 
-elements.nextMonth.addEventListener('click', () => {
+bind(elements.nextMonth, 'click', () => {
   currentDate.setMonth(currentDate.getMonth() + 1);
   renderCalendar();
 });
 
-elements.taskDeadlineDate.addEventListener('click', () => {
+bind(elements.taskDeadlineDate, 'click', () => {
   const isVisible = elements.datePickerDropdown.style.display === 'block';
   elements.datePickerDropdown.style.display = isVisible ? 'none' : 'block';
   if (!isVisible) {
@@ -2402,7 +2404,7 @@ function getTimeValue() {
   return `${hour.toString().padStart(2, '0')}:${selectedTime.minute.toString().padStart(2, '0')}`;
 }
 
-elements.taskDeadlineTime.addEventListener('click', () => {
+bind(elements.taskDeadlineTime, 'click', () => {
   const isVisible = elements.timePickerDropdown.style.display === 'flex';
   elements.timePickerDropdown.style.display = isVisible ? 'none' : 'flex';
   if (!isVisible) {
@@ -2410,14 +2412,14 @@ elements.taskDeadlineTime.addEventListener('click', () => {
   }
 });
 
-elements.taskDeadlineTime.addEventListener('input', () => {
+bind(elements.taskDeadlineTime, 'input', () => {
   const parsed = parseTimeInput(elements.taskDeadlineTime.value);
   if (!parsed) return;
   selectedTime = parsed;
   applyTimeSelection();
 });
 
-elements.taskDeadlineTime.addEventListener('blur', () => {
+bind(elements.taskDeadlineTime, 'blur', () => {
   if (!elements.taskDeadlineTime.value) return;
   updateTimeDisplay();
 });
