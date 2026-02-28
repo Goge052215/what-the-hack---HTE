@@ -43,18 +43,6 @@ const elements = {
   settingsPanel: document.getElementById("settingsPanel"),
   taskListPanel: document.getElementById("taskListPanel"),
   addTaskPanel: document.getElementById("addTaskPanel"),
-  // Settings navigation
-  dashboardSettingBtn: document.getElementById("dashboardSettingBtn"),
-  notificationsSettingBtn: document.getElementById("notificationsSettingBtn"),
-  styleSettingBtn: document.getElementById("styleSettingBtn"),
-  tabsSettingBtn: document.getElementById("tabsSettingBtn"),
-  apiSettingBtn: document.getElementById("apiSettingBtn"),
-  // Settings sections
-  dashboardSection: document.getElementById("dashboardSection"),
-  notificationsSection: document.getElementById("notificationsSection"),
-  styleSection: document.getElementById("styleSection"),
-  tabsSection: document.getElementById("tabsSection"),
-  apiSection: document.getElementById("apiSection"),
 };
 
 let tasks = [];
@@ -645,62 +633,32 @@ const saveNotificationSettings = () => {
   }
 };
 
-const switchSettingsSection = (sectionName) => {
-  // Hide all sections
-  const sections = [
-    elements.dashboardSection,
-    elements.notificationsSection,
-    elements.styleSection,
-    elements.tabsSection,
-    elements.apiSection
-  ];
+const initAccordion = () => {
+  const accordionHeaders = document.querySelectorAll('.accordion-header');
   
-  sections.forEach(section => {
-    if (section) section.classList.remove('active');
+  accordionHeaders.forEach(header => {
+    header.addEventListener('click', () => {
+      const section = header.dataset.section;
+      const content = document.querySelector(`.accordion-content[data-section="${section}"]`);
+      const isActive = header.classList.contains('active');
+      
+      // Toggle current section
+      if (isActive) {
+        header.classList.remove('active');
+        content.classList.remove('active');
+      } else {
+        header.classList.add('active');
+        content.classList.add('active');
+      }
+    });
   });
-  
-  // Remove active class from all buttons
-  const buttons = [
-    elements.dashboardSettingBtn,
-    elements.notificationsSettingBtn,
-    elements.styleSettingBtn,
-    elements.tabsSettingBtn,
-    elements.apiSettingBtn
-  ];
-  
-  buttons.forEach(btn => {
-    if (btn) btn.classList.remove('active');
-  });
-  
-  // Show selected section and activate button
-  switch(sectionName) {
-    case 'dashboard':
-      elements.dashboardSection?.classList.add('active');
-      elements.dashboardSettingBtn?.classList.add('active');
-      break;
-    case 'notifications':
-      elements.notificationsSection?.classList.add('active');
-      elements.notificationsSettingBtn?.classList.add('active');
-      break;
-    case 'style':
-      elements.styleSection?.classList.add('active');
-      elements.styleSettingBtn?.classList.add('active');
-      break;
-    case 'tabs':
-      elements.tabsSection?.classList.add('active');
-      elements.tabsSettingBtn?.classList.add('active');
-      break;
-    case 'api':
-      elements.apiSection?.classList.add('active');
-      elements.apiSettingBtn?.classList.add('active');
-      break;
-  }
 };
 
 const init = async () => {
   loadTheme();
   loadTasks();
   loadNotificationSettings();
+  initAccordion();
   updateCurrentTask();
   const baseUrl = await ensureApiBaseUrl();
   elements.apiBaseUrl.value = baseUrl;
@@ -788,13 +746,6 @@ elements.typeExam.addEventListener("click", () => {
 elements.typeEvent.addEventListener("click", () => {
   setTaskType("event");
 });
-
-// Settings navigation event listeners
-elements.dashboardSettingBtn?.addEventListener("click", () => switchSettingsSection('dashboard'));
-elements.notificationsSettingBtn?.addEventListener("click", () => switchSettingsSection('notifications'));
-elements.styleSettingBtn?.addEventListener("click", () => switchSettingsSection('style'));
-elements.tabsSettingBtn?.addEventListener("click", () => switchSettingsSection('tabs'));
-elements.apiSettingBtn?.addEventListener("click", () => switchSettingsSection('api'));
 
 // Notification settings event listeners
 elements.enableNotifications.addEventListener("change", saveNotificationSettings);
