@@ -46,6 +46,8 @@ const elements = {
   analysisScore: document.getElementById("analysisScore"),
   analysisMeta: document.getElementById("analysisMeta"),
   analysisList: document.getElementById("analysisList"),
+  revisionDojoLinkContainer: document.getElementById("revisionDojoLinkContainer"),
+  revisionDojoLink: document.getElementById("revisionDojoLink"),
   lightThemeBtn: document.getElementById("lightThemeBtn"),
   darkThemeBtn: document.getElementById("darkThemeBtn"),
   autoThemeBtn: document.getElementById("autoThemeBtn"),
@@ -1588,6 +1590,64 @@ const renderTabList = (entries) => {
     .join("");
 };
 
+const revisionDojoTopics = [
+  { topic: "Biology", keywords: ["biology", "bio"] },
+  { topic: "Chemistry", keywords: ["chemistry", "chem"] },
+  { topic: "Physics", keywords: ["physics"] },
+  { topic: "Mathematics", keywords: ["math", "mathematics", "calculus", "algebra", "statistics"] },
+  { topic: "Economics", keywords: ["economics", "econ"] },
+  { topic: "Business", keywords: ["business", "management"] },
+  { topic: "History", keywords: ["history"] },
+  { topic: "English", keywords: ["english", "literature", "lang & lit", "language and literature"] },
+  { topic: "Psychology", keywords: ["psychology", "psych"] },
+  { topic: "Computer Science", keywords: ["computer science", "cs", "programming", "coding"] },
+  { topic: "Geography", keywords: ["geography"] },
+];
+
+const buildRevisionDojoUrl = (topic) =>
+  `https://www.revisiondojo.com/home?topic=${encodeURIComponent(topic)}`;
+
+const findRevisionDojoTopic = (text) => {
+  const lower = (text || "").toLowerCase();
+  for (const entry of revisionDojoTopics) {
+    if (entry.keywords.some((keyword) => lower.includes(keyword))) {
+      return entry.topic;
+    }
+  }
+  return null;
+};
+
+const updateRevisionDojoLink = (entries) => {
+  if (!elements.revisionDojoLinkContainer || !elements.revisionDojoLink) return;
+  const activeTab = entries.find((tab) => tab.active) || entries[0];
+  const activeTask = tasks.find((task) => !task.completed);
+  const combined = [
+    activeTab?.title,
+    activeTab?.url,
+    activeTask?.description,
+    activeTask?.title,
+  ]
+    .filter(Boolean)
+    .join(" ");
+
+  if (activeTab?.url && activeTab.url.includes("revisiondojo.com")) {
+    elements.revisionDojoLink.href = activeTab.url;
+    elements.revisionDojoLink.textContent = "Open RevisionDojo";
+    elements.revisionDojoLinkContainer.style.display = "block";
+    return;
+  }
+
+  const topic = findRevisionDojoTopic(combined);
+  if (topic) {
+    elements.revisionDojoLink.href = buildRevisionDojoUrl(topic);
+    elements.revisionDojoLink.textContent = `Open RevisionDojo: ${topic}`;
+    elements.revisionDojoLinkContainer.style.display = "block";
+    return;
+  }
+
+  elements.revisionDojoLinkContainer.style.display = "none";
+};
+
 const scoreContext = (context) => {
   const lower = context.toLowerCase();
   const focusWords = ["task", "study", "build", "learn"];
@@ -1625,9 +1685,11 @@ const analyzeTabs = async () => {
     elements.analysisScore.textContent = "Focus score: --";
     elements.analysisMeta.textContent = "Tabs analyzed: 0";
     elements.analysisList.innerHTML = "";
+    updateRevisionDojoLink([]);
     return;
   }
   renderTabList(entries);
+  updateRevisionDojoLink(entries);
   elements.analysisStatus.textContent = "Analyzing...";
   elements.analysisMeta.textContent = `Tabs analyzed: ${count}`;
   try {
