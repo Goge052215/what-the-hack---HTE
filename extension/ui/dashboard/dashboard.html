@@ -18,6 +18,13 @@
             <p id="summary">Loading...</p>
           </div>
           <div class="header-actions">
+            <div class="streak-display" id="streakDisplay">
+              <span id="streakIcon" class="streak-icon">🔥</span>
+              <div class="streak-info">
+                <span id="streakCount" class="streak-count">0 Days</span>
+                <span id="streakMessage" class="streak-message">Start your streak!</span>
+              </div>
+            </div>
             <div class="palette-picker">
               <button id="paletteToggle" class="palette-toggle" aria-label="Change color palette" aria-haspopup="true" aria-expanded="false">🎨</button>
               <div id="paletteMenu" class="palette-menu" role="menu" aria-label="Color palette" hidden>
@@ -59,7 +66,10 @@
       </header>
 
       <section class="card">
-        <h2>Active Tasks</h2>
+        <div class="card-header-actions">
+          <h2>Active Tasks</h2>
+          <a href="history.html" class="btn-secondary" id="viewHistoryBtn">📜 History</a>
+        </div>
         <div class="task-input-group">
           <input id="newTaskInput" type="text" placeholder="Add a new task..." />
           <button id="addTaskBtn" class="btn-primary">Add Task</button>
@@ -67,6 +77,32 @@
         <div id="tasksContainer">
           <p id="tasksStatus">No tasks yet. Add one above!</p>
           <ul id="tasksList" class="tasks-list"></ul>
+        </div>
+      </section>
+
+      <section class="card">
+        <h2>Recent Task History</h2>
+        <ul id="taskHistoryList" class="history-list"></ul>
+      </section>
+
+      <section class="card">
+        <h2>Achievements</h2>
+        <div id="achievementBadges" class="achievement-grid">
+          <div class="achievement-badge" data-type="streak" data-threshold="3">🔥 3-Day Streak</div>
+          <div class="achievement-badge" data-type="streak" data-threshold="7">⚡ 7-Day Streak</div>
+          <div class="achievement-badge" data-type="streak" data-threshold="14">🏅 14-Day Streak</div>
+          <div class="achievement-badge" data-type="tasks" data-threshold="5">📚 5 Tasks Done</div>
+          <div class="achievement-badge" data-type="tasks" data-threshold="15">🎓 15 Tasks Done</div>
+        </div>
+        <div class="library-progress">
+          <div class="library-info">
+            <span class="library-label">Library Progress</span>
+            <span id="libraryCount" class="library-count">0/20 books</span>
+          </div>
+          <div class="library-bar">
+            <div id="libraryBarFill" class="library-bar-fill" style="width: 0%;"></div>
+          </div>
+          <p id="libraryStatus" class="library-status">Fill the library to donate books to children.</p>
         </div>
       </section>
 
@@ -183,6 +219,14 @@
           <h3 class="section-subtitle">🤖 AI Learning Insights</h3>
           <p id="aiInsightText" class="ai-insight-text">Analyzing your focus patterns...</p>
         </div>
+      </section>
+
+      <section class="card">
+        <div class="card-header-actions">
+          <h2>Trait Data Export</h2>
+          <button id="exportTraitCsvBtn" class="btn-primary">Export .csv</button>
+        </div>
+        <p id="exportTraitStatus" class="export-status">No exports yet.</p>
       </section>
 
       <section class="card">

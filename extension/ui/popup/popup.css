@@ -54,6 +54,41 @@ select {
   gap: 8px;
 }
 
+.header-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.popup-streak {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 8px;
+  background: var(--bg-secondary);
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text-primary);
+  cursor: help;
+  transition: all 0.2s ease;
+}
+
+.popup-streak:hover {
+  border-color: var(--accent);
+  background: var(--bg-tertiary);
+}
+
+.popup-streak span:first-child {
+  filter: grayscale(100%);
+  transition: filter 0.3s ease;
+}
+
+.popup-streak.active span:first-child {
+  filter: none;
+}
+
 .icon-btn {
   background: var(--bg-secondary);
   border: 1px solid var(--border);
@@ -102,6 +137,24 @@ select {
   border: 1px solid var(--border);
   border-radius: 10px;
   padding: 14px;
+}
+
+.current-task.compact {
+  padding: 10px;
+}
+
+.current-task.compact .task-header h2 {
+  font-size: 14px;
+  line-height: 1.3;
+}
+
+.current-task.compact .progress-container {
+  margin-top: 8px;
+}
+
+.current-task.compact .status-btn {
+  padding: 6px 8px;
+  font-size: 9px;
 }
 
 .task-header {
@@ -511,6 +564,10 @@ select {
   -ms-overflow-style: none;
 }
 
+.time-picker-scroll {
+  scroll-snap-type: y mandatory;
+}
+
 .time-picker-scroll::-webkit-scrollbar,
 .compact-list::-webkit-scrollbar,
 .task-list::-webkit-scrollbar {
@@ -530,6 +587,7 @@ select {
   color: var(--text-primary);
   transition: all 0.2s ease;
   user-select: none;
+  scroll-snap-align: center;
 }
 
 .time-option:hover {
@@ -572,8 +630,7 @@ select {
   font-size: 12px;
   font-weight: 600;
   transition: all 0.2s ease;
-  cursor: pointer;
-  user-select: none;
+  cursor: text;
 }
 
 #taskDeadlineTime:hover,
@@ -1048,6 +1105,35 @@ input:focus {
   font-weight: 500;
   color: var(--text-tertiary);
   text-align: center;
+}
+
+.task-bins {
+  display: grid;
+  gap: 12px;
+}
+
+.task-bin {
+  display: grid;
+  gap: 8px;
+}
+
+.task-bin-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.task-bin-count {
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 2px 8px;
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--text-secondary);
 }
 
 .task-list {

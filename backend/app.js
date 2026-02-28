@@ -64,7 +64,7 @@ const handler = async (req, res) => {
     return sendJson(res, 200, { ok: true });
   }
   if (handleAuth(req, res, ctx)) return;
-  if (handleTasks(req, res, ctx)) return;
+  if (await handleTasks(req, res, ctx)) return;
   if (handleHabits(req, res, ctx)) return;
   if (handleSchedule(req, res, ctx)) return;
   if (await handleAnalyze(req, res, ctx)) return;

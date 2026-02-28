@@ -1,8 +1,7 @@
 importScripts("storage.js", "messaging.js", "alarms.js");
 
 const defaultApiBaseUrl = "http://localhost:5174";
-const notificationIcon =
-  "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='128' height='128'><rect width='128' height='128' fill='%230f172a'/><text x='64' y='78' font-size='64' text-anchor='middle' fill='white'>F</text></svg>";
+const notificationIcon = chrome.runtime.getURL("icons/icon48.png");
 
 const getStored = (keys) =>
   new Promise((resolve) => {
@@ -121,6 +120,13 @@ const recordSession = async ({ durationMin, breakTaken }) => {
   });
 };
 
+const clearTimerAlarms = async () => {
+  const alarms = await chrome.alarms.getAll();
+  alarms
+    .filter((alarm) => alarm.name.startsWith("timer-complete-"))
+    .forEach((alarm) => chrome.alarms.clear(alarm.name));
+};
+
 let focusStartTime = null;
 let lastTabId = null;
 let tabSwitchCount = 0;
@@ -213,6 +219,27 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     focusStartTime = null;
     sendResponse({ ok: true });
   }
+  if (message?.type === "scheduleTimerAlarm") {
+    const remainingMs = Number(message.remainingMs);
+    const phase = message.phase === "rest" ? "rest" : "focus";
+    if (!Number.isFinite(remainingMs) || remainingMs <= 0) {
+      sendResponse({ ok: false });
+      return false;
+    }
+    clearTimerAlarms()
+      .then(() => {
+        chrome.alarms.create(`timer-complete-${phase}`, { when: Date.now() + remainingMs });
+      })
+      .then(() => sendResponse({ ok: true }))
+      .catch(() => sendResponse({ ok: false }));
+    return true;
+  }
+  if (message?.type === "clearTimerAlarm") {
+    clearTimerAlarms()
+      .then(() => sendResponse({ ok: true }))
+      .catch(() => sendResponse({ ok: false }));
+    return true;
+  }
   return false;
 });
 
@@ -236,6 +263,27 @@ chrome.idle.onStateChanged.addListener((state) => {
 });
 
 chrome.alarms.onAlarm.addListener(async (alarm) => {
+  if (alarm?.name && alarm.name.startsWith("timer-complete-")) {
+    const settings = await getNotificationSettings();
+    if (!settings.enabled) return;
+    const phase = alarm.name.replace("timer-complete-", "");
+    const state = await getStored(["timerState"]);
+    const timerState = state.timerState;
+    if (!timerState?.isRunning) return;
+    if (timerState.phase !== phase) return;
+    if (!timerState.startedAt || typeof timerState.baseRemaining !== "number") return;
+    const remainingMs = timerState.baseRemaining * 1000 - (Date.now() - timerState.startedAt);
+    if (remainingMs > 1000) {
+      chrome.alarms.create(`timer-complete-${phase}`, { when: Date.now() + remainingMs });
+      return;
+    }
+    showNotification(
+      `timer-complete-${phase}`,
+      phase === "focus" ? "Focus Session Complete!" : "Break Complete!",
+      phase === "focus" ? "Time for a break!" : "Ready to focus again?"
+    );
+    return;
+  }
   if (alarm?.name && alarm.name.startsWith("phase-")) {
     const schedule = await getActiveSchedule();
     if (!schedule?.blocks?.length) return;
@@ -250,6 +298,16 @@ chrome.alarms.onAlarm.addListener(async (alarm) => {
       return;
     }
     notify("Time to rest", `Take a ${block.duration}-minute break.`);
+    return;
+  }
+  if (alarm?.name === "break-return") {
+    if (!breakStartTime) return;
+    showNotification(
+      "return-to-work",
+      "🎯 Break's over!",
+      "Time to get back to work. You're refreshed and ready to focus!"
+    );
+    breakStartTime = null;
     return;
   }
   if (alarm?.name && alarm.name.startsWith("break")) {
@@ -296,21 +354,17 @@ async function getTasks() {
 }
 
 function showNotification(id, title, message, buttons = []) {
-  // Use data URL for icon since we don't have icon files
-  const iconUrl = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==';
-  
   chrome.notifications.create(id, {
     type: "basic",
-    iconUrl: iconUrl,
+    iconUrl: notificationIcon,
     title: title,
     message: message,
     buttons: buttons,
-    priority: 2
-  }, (notificationId) => {
+    priority: 2,
+    requireInteraction: true
+  }, () => {
     if (chrome.runtime.lastError) {
-      console.error('Notification error:', chrome.runtime.lastError);
-    } else {
-      console.log('Notification created:', notificationId);
+      return;
     }
   });
 }
@@ -380,22 +434,11 @@ chrome.notifications.onButtonClicked.addListener((notificationId, buttonIndex) =
       focusStartTime = null;
       breakStartTime = Date.now();
       chrome.notifications.clear(notificationId);
-      
-      // Schedule return-to-work notification after break duration
-      setTimeout(() => {
-        if (breakStartTime) {
-          showNotification(
-            "return-to-work",
-            "🎯 Break's over!",
-            "Time to get back to work. You're refreshed and ready to focus!"
-          );
-          breakStartTime = null;
-        }
-      }, breakDuration);
-      
+      chrome.alarms.create("break-return", { delayInMinutes: breakDuration / 60000 });
     } else if (buttonIndex === 1) {
       // Keep Working - reset timer
       focusStartTime = Date.now();
+      breakStartTime = null;
       chrome.notifications.clear(notificationId);
     }
   }

@@ -39,10 +39,25 @@ const elements = {
   colorPickerPanel: document.getElementById("colorPickerPanel"),
   colorPicker: document.getElementById("colorPicker"),
   applyCustomColor: document.getElementById("applyCustomColor"),
+  // Streak Elements
+  streakDisplay: document.getElementById("streakDisplay"),
+  streakIcon: document.getElementById("streakIcon"),
+  streakCount: document.getElementById("streakCount"),
+  streakMessage: document.getElementById("streakMessage"),
+  taskHistoryList: document.getElementById("taskHistoryList"),
+  achievementBadges: document.getElementById("achievementBadges"),
+  libraryCount: document.getElementById("libraryCount"),
+  libraryStatus: document.getElementById("libraryStatus"),
+  libraryBarFill: document.getElementById("libraryBarFill"),
+  exportTraitCsvBtn: document.getElementById("exportTraitCsvBtn"),
+  exportTraitStatus: document.getElementById("exportTraitStatus"),
 };
 
 let tasks = [];
 let currentPaletteId = "slate";
+const TASK_HISTORY_RETENTION_DAYS = 30;
+const LIBRARY_CAPACITY = 20;
+let taskHistory = [];
 let dailyStats = {
   date: new Date().toDateString(),
   studyMinutes: 0,
@@ -53,6 +68,13 @@ let sessionState = {
   startTime: null,
   isFocused: false,
 };
+let streakData = {
+  count: 0,
+  lastActiveDate: null,
+  isActive: false
+};
+let insightCache = null;
+let insightRequest = null;
 
 const palettes = {
   slate: {
@@ -302,6 +324,13 @@ const updatePaletteMenuSelection = () => {
       btn.removeAttribute("aria-checked");
     }
   });
+  if (elements.customPaletteSwatch) {
+    const storedColor = elements.customPaletteSwatch.getAttribute("data-color");
+    if (storedColor) {
+      const dot = elements.customPaletteSwatch.querySelector(".swatch-dot");
+      if (dot) dot.style.setProperty("--swatch", storedColor);
+    }
+  }
 };
 
 const closePaletteMenu = () => {
@@ -380,7 +409,10 @@ const toggleTheme = () => {
 const loadTasks = async () => {
   const response = await apiRequest("/api/tasks");
   if (response.ok) {
-    tasks = response.data || [];
+    tasks = (response.data || []).map((task) => ({
+      ...task,
+      description: task.description || task.title || "",
+    }));
     elements.summary.textContent = `Tasks tracked: ${tasks.length}`;
     renderTasks();
     updateInsights();
@@ -392,7 +424,10 @@ const loadTasks = async () => {
 
 const loadLocalTasks = () => {
   chrome.storage.local.get(["tasks"], (result) => {
-    tasks = result.tasks || [];
+    tasks = (result.tasks || []).map((task) => ({
+      ...task,
+      description: task.description || task.title || "",
+    }));
     renderTasks();
     updateInsights();
   });
@@ -416,11 +451,15 @@ const addTask = async () => {
 
   const response = await apiRequest("/api/tasks", {
     method: "POST",
-    body: { description },
+    body: { title: description, description },
   });
 
   if (response.ok && response.data) {
-    tasks.push({ ...newTask, subtasks: response.data.subtasks || [] });
+    tasks.push({
+      ...newTask,
+      subtasks: response.data.subtasks || [],
+      description: response.data.description || description,
+    });
   } else {
     tasks.push(newTask);
   }
@@ -429,6 +468,52 @@ const addTask = async () => {
   renderTasks();
   updateInsights();
   elements.newTaskInput.value = "";
+};
+
+const loadStreak = () => {
+  return new Promise((resolve) => {
+    chrome.storage.local.get(["streakData"], (result) => {
+      streakData = result.streakData || { count: 0, lastActiveDate: null, isActive: false };
+      updateStreakUI();
+      resolve();
+    });
+  });
+};
+
+const updateStreakForStudy = () => {
+  const today = new Date().toDateString();
+  const yesterday = new Date(Date.now() - 86400000).toDateString();
+  if (streakData.lastActiveDate === today) return;
+  if (streakData.lastActiveDate === yesterday) {
+    streakData.count += 1;
+  } else {
+    streakData.count = 1;
+  }
+  streakData.lastActiveDate = today;
+  streakData.isActive = true;
+  chrome.storage.local.set({ streakData });
+  updateStreakUI();
+  updateAchievements();
+};
+
+const updateStreakUI = () => {
+  if (!elements.streakDisplay) return;
+
+  const count = streakData.count;
+  const isFire = count >= 3;
+  
+  if (isFire) {
+    elements.streakIcon.textContent = "🔥";
+    elements.streakIcon.style.filter = "none";
+    elements.streakCount.textContent = `Streak: ${count} days`;
+    elements.streakMessage.textContent = "You're on fire! Keep it up!";
+  } else {
+    elements.streakIcon.textContent = "🔥";
+    elements.streakIcon.style.filter = "grayscale(100%)";
+    elements.streakCount.textContent = `Streak: ${count} days`;
+    const daysLeft = 3 - count;
+    elements.streakMessage.textContent = `${daysLeft} more day${daysLeft > 1 ? 's' : ''} to ignite the spark!`;
+  }
 };
 
 const loadDailyStats = () => {
@@ -456,6 +541,213 @@ const saveDailyStats = () => {
   chrome.storage.local.set({ dailyStats });
 };
 
+const pruneTaskHistory = (items) => {
+  const cutoff = Date.now() - TASK_HISTORY_RETENTION_DAYS * 86400000;
+  return items.filter((task) => {
+    const stamp = new Date(task.completedAt || task.archivedAt || task.createdAt || Date.now()).getTime();
+    return stamp >= cutoff;
+  });
+};
+
+const loadTaskHistory = () =>
+  new Promise((resolve) => {
+    chrome.storage.local.get(["taskHistory"], (result) => {
+      taskHistory = pruneTaskHistory(Array.isArray(result.taskHistory) ? result.taskHistory : []);
+      chrome.storage.local.set({ taskHistory });
+      renderTaskHistory();
+      updateInsights();
+      updateAchievements();
+      resolve(taskHistory);
+    });
+  });
+
+const csvEscape = (value) => {
+  if (value === null || value === undefined) return "";
+  const text = String(value);
+  if (/[",\n]/.test(text)) {
+    return `"${text.replace(/"/g, '""')}"`;
+  }
+  return text;
+};
+
+const pickTimestamp = (item) => {
+  const candidate =
+    item?.completedAt ||
+    item?.archivedAt ||
+    item?.createdAt ||
+    item?.startTime ||
+    item?.endTime ||
+    item?.timestamp;
+  if (!candidate) return "";
+  const date = new Date(candidate);
+  if (Number.isNaN(date.getTime())) return "";
+  return date.toISOString();
+};
+
+const buildTraitSnapshot = async () => {
+  const keys = [
+    "tasks",
+    "taskHistory",
+    "dailyStats",
+    "streakData",
+    "timerHistory",
+    "aiInsightCache",
+    "tabHistory",
+    "focusScore",
+    "currentSession",
+  ];
+  const stored = await new Promise((resolve) => {
+    chrome.storage.local.get(keys, (result) => resolve(result || {}));
+  });
+  return {
+    generatedAt: new Date().toISOString(),
+    tasks: stored.tasks || tasks,
+    taskHistory: stored.taskHistory || taskHistory,
+    dailyStats: stored.dailyStats || dailyStats,
+    streakData: stored.streakData || streakData,
+    timerHistory: stored.timerHistory || [],
+    aiInsightCache: stored.aiInsightCache || null,
+    tabHistory: stored.tabHistory || [],
+    focusScore: stored.focusScore || [],
+    currentSession: stored.currentSession || null,
+  };
+};
+
+const buildTraitCsv = (snapshot) => {
+  const rows = [["record_type", "record_id", "timestamp", "data_json"]];
+  const addRow = (type, id, timestamp, data) => {
+    rows.push([type, id || "", timestamp || "", JSON.stringify(data ?? null)]);
+  };
+
+  addRow("meta", "snapshot", snapshot.generatedAt, { generatedAt: snapshot.generatedAt });
+  if (snapshot.dailyStats) {
+    addRow("daily_stats", "daily_stats", snapshot.dailyStats.date || snapshot.generatedAt, snapshot.dailyStats);
+  }
+  if (snapshot.streakData) {
+    addRow("streak", "streak", snapshot.streakData.lastActiveDate || snapshot.generatedAt, snapshot.streakData);
+  }
+  if (snapshot.aiInsightCache) {
+    addRow("ai_insight", "ai_insight", snapshot.aiInsightCache.day || snapshot.generatedAt, snapshot.aiInsightCache);
+  }
+  if (snapshot.currentSession) {
+    addRow(
+      "current_session",
+      snapshot.currentSession.id || "current_session",
+      pickTimestamp(snapshot.currentSession) || snapshot.generatedAt,
+      snapshot.currentSession
+    );
+  }
+
+  (snapshot.tasks || []).forEach((task, index) => {
+    addRow("task", task.id || `task_${index}`, pickTimestamp(task), task);
+  });
+  (snapshot.taskHistory || []).forEach((task, index) => {
+    addRow("task_history", task.id || `task_history_${index}`, pickTimestamp(task), task);
+  });
+  (snapshot.timerHistory || []).forEach((session, index) => {
+    addRow("timer_session", session.id || `timer_session_${index}`, pickTimestamp(session), session);
+  });
+  (snapshot.tabHistory || []).forEach((entry, index) => {
+    addRow("tab_history", entry.id || `tab_history_${index}`, pickTimestamp(entry), entry);
+  });
+  (snapshot.focusScore || []).forEach((entry, index) => {
+    addRow("focus_score", entry.id || `focus_score_${index}`, pickTimestamp(entry), entry);
+  });
+
+  return rows.map((row) => row.map(csvEscape).join(",")).join("\n");
+};
+
+const updateTraitExportStatus = (meta) => {
+  if (!elements.exportTraitStatus) return;
+  if (!meta || (!meta.lastExportedAt && !meta.lastGeneratedAt)) {
+    elements.exportTraitStatus.textContent = "No exports yet.";
+    return;
+  }
+  const timestamp = meta.lastExportedAt || meta.lastGeneratedAt;
+  const date = new Date(timestamp);
+  const label = Number.isNaN(date.getTime()) ? timestamp : date.toLocaleString();
+  const recordCount = meta.recordCount || 0;
+  elements.exportTraitStatus.textContent = `Last export: ${label} • ${recordCount} rows`;
+};
+
+const loadTraitExportMeta = () =>
+  new Promise((resolve) => {
+    chrome.storage.local.get(["traitAnalysisMeta"], (result) => {
+      updateTraitExportStatus(result.traitAnalysisMeta);
+      resolve(result.traitAnalysisMeta || null);
+    });
+  });
+
+const saveTraitSnapshot = async () => {
+  const snapshot = await buildTraitSnapshot();
+  const csv = buildTraitCsv(snapshot);
+  const recordCount = Math.max(0, csv.split("\n").length - 1);
+  const meta = { lastGeneratedAt: snapshot.generatedAt, recordCount };
+  chrome.storage.local.set({
+    traitAnalysisSnapshot: snapshot,
+    traitAnalysisCsv: csv,
+    traitAnalysisMeta: meta,
+  });
+  updateTraitExportStatus(meta);
+  return { csv, meta };
+};
+
+const exportTraitCsv = async () => {
+  if (!elements.exportTraitCsvBtn) return;
+  const originalText = elements.exportTraitCsvBtn.textContent;
+  elements.exportTraitCsvBtn.disabled = true;
+  elements.exportTraitCsvBtn.textContent = "Exporting...";
+  if (elements.exportTraitStatus) {
+    elements.exportTraitStatus.textContent = "Preparing export...";
+  }
+
+  try {
+    const { csv, meta } = await saveTraitSnapshot();
+    const blob = new Blob([csv], { type: "text/csv" });
+    const url = URL.createObjectURL(blob);
+    const filename = `focus-tutor-trait-data-${new Date().toISOString().slice(0, 10)}.csv`;
+    chrome.downloads.download({ url, filename, saveAs: true }, () => {
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+      if (chrome.runtime.lastError) {
+        if (elements.exportTraitStatus) {
+          elements.exportTraitStatus.textContent = "Export failed. Try again.";
+        }
+        return;
+      }
+      const updatedMeta = { ...meta, lastExportedAt: new Date().toISOString() };
+      chrome.storage.local.set({ traitAnalysisMeta: updatedMeta });
+      updateTraitExportStatus(updatedMeta);
+    });
+  } finally {
+    elements.exportTraitCsvBtn.disabled = false;
+    elements.exportTraitCsvBtn.textContent = originalText;
+  }
+};
+
+const saveTaskHistory = () => {
+  chrome.storage.local.set({ taskHistory });
+};
+
+const archiveTask = (task) => {
+  if (!task) return;
+  const archivedAt = new Date().toISOString();
+  taskHistory = pruneTaskHistory([{ ...task, archivedAt }, ...taskHistory]).slice(0, 200);
+  saveTaskHistory();
+  renderTaskHistory();
+  updateAchievements();
+};
+
+const completeAndArchiveTask = (task) => {
+  if (!task) return;
+  const completedAt = task.completedAt || new Date().toISOString();
+  const archived = { ...task, completed: true, completedAt };
+  archiveTask(archived);
+  tasks = tasks.filter((t) => t.id !== task.id);
+  saveLocalTasks();
+  renderTasks();
+  updateInsights();
+};
+
 const updateBehavioralUI = () => {
   // Time Distribution
   const total = dailyStats.studyMinutes + dailyStats.entertainmentMinutes;
@@ -480,11 +772,54 @@ const updateBehavioralUI = () => {
   }
 };
 
+const loadInsightCache = () => {
+  return new Promise((resolve) => {
+    chrome.storage.local.get(["aiInsightCache"], (result) => {
+      resolve(result.aiInsightCache || null);
+    });
+  });
+};
+
+const storeInsightCache = (payload) => {
+  chrome.storage.local.set({ aiInsightCache: payload });
+};
+
+const getInsightForToday = async () => {
+  const day = new Date().toISOString().slice(0, 10);
+  if (insightCache?.day === day && insightCache?.text) {
+    return insightCache;
+  }
+  const stored = await loadInsightCache();
+  if (stored?.day === day && stored?.text) {
+    insightCache = stored;
+    return stored;
+  }
+  if (insightRequest) {
+    return insightRequest;
+  }
+  insightRequest = (async () => {
+    try {
+      const response = await apiRequest(`/api/analyze/insight?day=${day}`, { method: "GET" });
+      if (response.ok && response.data?.insight) {
+        const payload = { day, text: response.data.insight, source: response.data.source };
+        insightCache = payload;
+        storeInsightCache(payload);
+        return payload;
+      }
+    } catch {
+      return null;
+    }
+    return null;
+  })();
+  const result = await insightRequest;
+  insightRequest = null;
+  return result;
+};
+
 const calculatePeakHour = () => {
   let maxScore = -1;
   let bestHour = null;
   for (const [hour, data] of Object.entries(dailyStats.hourlyScores)) {
-    if (data.count < 2) continue; // Need at least 2 samples (1 min)
     const avg = data.sum / data.count;
     if (avg > maxScore) {
       maxScore = avg;
@@ -555,10 +890,53 @@ const formatHour = (hour) => {
   return `${h}${period}`;
 };
 
+const buildHourlyScoresFromReport = (distribution) => {
+  if (!Array.isArray(distribution)) return {};
+  return distribution.reduce((acc, entry) => {
+    if (!Number.isFinite(entry?.hour) || !Number.isFinite(entry?.focusRatio)) return acc;
+    acc[entry.hour] = {
+      sum: entry.focusRatio,
+      count: 1,
+    };
+    return acc;
+  }, {});
+};
+
+const refreshBehavioralReport = async () => {
+  const day = new Date().toISOString().slice(0, 10);
+  try {
+    const response = await apiRequest(`/api/analyze/report?day=${day}`, { method: "GET" });
+    const report = response.ok ? response.data?.report : null;
+    if (!report || !Number.isFinite(report.trackedMinutes) || report.trackedMinutes <= 0) {
+      return;
+    }
+    dailyStats.studyMinutes = Math.max(dailyStats.studyMinutes, report.focusMinutes || 0);
+    dailyStats.entertainmentMinutes = Math.max(
+      dailyStats.entertainmentMinutes,
+      Math.max(0, report.trackedMinutes - (report.focusMinutes || 0))
+    );
+    dailyStats.hourlyScores = buildHourlyScoresFromReport(report.efficiencyDistribution);
+    saveDailyStats();
+    updateBehavioralUI();
+  } catch {
+    return;
+  }
+};
+
 const toggleTask = (taskId) => {
   const task = tasks.find((t) => t.id === taskId);
   if (task) {
-    task.completed = !task.completed;
+    if (!task.completed) {
+      const completedTask = {
+        ...task,
+        completed: true,
+        completedAt: new Date().toISOString(),
+      };
+      completeAndArchiveTask(completedTask);
+      return;
+    }
+    task.completed = false;
+    task.completedAt = null;
     saveLocalTasks();
     renderTasks();
     updateInsights();
@@ -584,7 +962,7 @@ const renderTasks = () => {
         />
         <div class="task-item-content">
           <p class="task-title" style="${task.completed ? "text-decoration: line-through; opacity: 0.6;" : ""}">
-            ${task.description}
+            ${task.description || task.title || "Untitled task"}
           </p>
           <p class="task-meta">
             ${task.subtasks?.length ? `${task.subtasks.length} subtasks` : "No subtasks"}
@@ -604,10 +982,10 @@ const renderTasks = () => {
 };
 
 const updateInsights = () => {
-  const completed = tasks.filter((t) => t.completed).length;
+  const completed = taskHistory.length;
   elements.tasksCompleted.textContent = completed;
   
-  const totalTasks = tasks.length;
+  const totalTasks = tasks.length + completed;
   const productivity = totalTasks > 0 ? Math.round((completed / totalTasks) * 100) : 0;
   elements.productivityScore.textContent = `${productivity}%`;
 };
@@ -644,12 +1022,14 @@ const analyzeTabs = async () => {
   const response = await apiRequest("/api/analyze", { method: "POST", body: { context } });
   
   let score;
+  let category = "neutral";
   if (!response.ok) {
     score = scoreContext(context);
     elements.analysisStatus.textContent = "Local analysis";
   } else {
     score = response.data?.score ?? scoreContext(context);
     elements.analysisStatus.textContent = "Analysis complete";
+    category = response.data?.category || category;
   }
   
   elements.focusScoreValue.textContent = typeof score === "number" ? score.toFixed(2) : "--";
@@ -657,7 +1037,7 @@ const analyzeTabs = async () => {
   elements.focusProgressBar.style.width = `${(score * 100).toFixed(0)}%`;
   
   // Behavioral Analysis Updates
-  const isStudy = score >= 0.5;
+  const isStudy = category === "study" || score >= 0.6;
   if (isStudy) {
     dailyStats.studyMinutes += 0.5; // Approx 30s interval
   } else {
@@ -674,6 +1054,9 @@ const analyzeTabs = async () => {
   saveDailyStats();
   updateBehavioralUI();
   updateFatigue(isStudy);
+  if (isStudy) {
+    updateStreakForStudy();
+  }
 
   const scoreCircle = document.querySelector(".score-circle");
   scoreCircle.classList.remove("score-high", "score-medium", "score-low");
@@ -752,17 +1135,82 @@ const displaySessionHistory = (sessions) => {
   }).join('');
 };
 
-const checkForAIInsights = (sessions) => {
-  // Show AI insights if user has at least 5 focus sessions
+const formatHistoryDate = (isoString) => {
+  if (!isoString) return "Unknown date";
+  const date = new Date(isoString);
+  return date.toLocaleDateString(undefined, {
+    month: "short",
+    day: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+};
+
+const renderTaskHistory = () => {
+  if (!elements.taskHistoryList) return;
+  if (!taskHistory.length) {
+    elements.taskHistoryList.innerHTML = '<li class="history-item empty">No completed tasks yet.</li>';
+    return;
+  }
+  const recent = taskHistory
+    .slice()
+    .sort((a, b) => {
+      const dateA = new Date(a.completedAt || a.archivedAt || a.createdAt || 0);
+      const dateB = new Date(b.completedAt || b.archivedAt || b.createdAt || 0);
+      return dateB - dateA;
+    })
+    .slice(0, 6);
+  elements.taskHistoryList.innerHTML = recent
+    .map(
+      (task) => `
+      <li class="history-item">
+        <span class="history-status">✓</span>
+        <div class="history-content">
+          <p class="history-title">${task.description || task.title || "Completed task"}</p>
+          <p class="history-meta">Completed ${formatHistoryDate(task.completedAt || task.archivedAt || task.createdAt)}</p>
+        </div>
+      </li>
+    `
+    )
+    .join("");
+};
+
+const updateAchievements = () => {
+  const completedCount = taskHistory.length;
+  if (elements.achievementBadges) {
+    elements.achievementBadges.querySelectorAll(".achievement-badge").forEach((badge) => {
+      const type = badge.getAttribute("data-type");
+      const threshold = Number(badge.getAttribute("data-threshold"));
+      const earned =
+        (type === "streak" && streakData.count >= threshold) ||
+        (type === "tasks" && completedCount >= threshold);
+      badge.classList.toggle("earned", earned);
+    });
+  }
+  if (elements.libraryBarFill && elements.libraryCount && elements.libraryStatus) {
+    const donations = Math.floor(completedCount / LIBRARY_CAPACITY);
+    const currentFill = completedCount % LIBRARY_CAPACITY;
+    const percent = Math.min(100, Math.round((currentFill / LIBRARY_CAPACITY) * 100));
+    elements.libraryBarFill.style.width = `${percent}%`;
+    elements.libraryCount.textContent = `${currentFill}/${LIBRARY_CAPACITY} books`;
+    if (currentFill === 0 && completedCount > 0) {
+      elements.libraryStatus.textContent = donations === 1
+        ? "Library full! Donated 1 library."
+        : `Library full! Donated ${donations} libraries.`;
+    } else {
+      elements.libraryStatus.textContent = "Fill the library to donate books to children.";
+    }
+  }
+};
+
+const checkForAIInsights = async (sessions) => {
   const focusSessions = sessions.filter(s => s.phase === "focus");
   
   if (focusSessions.length >= 5) {
     elements.aiInsights.style.display = "block";
     
-    // Calculate patterns for AI analysis
     const patterns = analyzeSessionPatterns(focusSessions);
     
-    // Generate insight text (placeholder for Person 2's AI integration)
     let insightText = "Based on your focus sessions:\n\n";
     
     if (patterns.preferredDuration) {
@@ -777,7 +1225,15 @@ const checkForAIInsights = (sessions) => {
       insightText += `• You maintain ${patterns.consistency} session consistency.\n`;
     }
     
-    insightText += `\n💡 AI Feedback Integration Point: This data is ready for Person 2's learning style analysis to provide personalized recommendations.`;
+    insightText += "\n💡 AI Feedback Integration Point: This data is ready for Person 2's learning style analysis to provide personalized recommendations.\n";
+    
+    const insight = await getInsightForToday();
+    if (insight?.text) {
+      const sourceLabel = insight.source === "minimax" ? "Minimax" : "Heuristic";
+      insightText += `\nAI Insight (${sourceLabel}): ${insight.text}`;
+    } else {
+      insightText += "\nAI Insight: Retrieving your learning insight...";
+    }
     
     elements.aiInsightText.textContent = insightText;
   }
@@ -812,13 +1268,24 @@ const init = async () => {
   await loadTheme();
   await loadTasks();
   await loadDailyStats();
+  await loadStreak();
+  await loadTaskHistory();
   await loadTimerSessions();
+  await loadTraitExportMeta();
+  await analyzeTabs();
+  await refreshBehavioralReport();
+  await saveTraitSnapshot();
+  renderTaskHistory();
+  updateAchievements();
   
   // Refresh timer stats every 30 seconds
   setInterval(loadTimerSessions, 30000);
+  setInterval(analyzeTabs, 30000);
+  setInterval(refreshBehavioralReport, 60000);
+  setInterval(loadTaskHistory, 60000);
+  setInterval(saveTraitSnapshot, 60000);
 };
 
-init();
 
 // Listen for storage changes to sync palette and theme from popup
 chrome.storage.onChanged.addListener((changes, namespace) => {
@@ -881,6 +1348,9 @@ elements.newTaskInput.addEventListener("keypress", (e) => {
   }
 });
 elements.themeToggle.addEventListener("click", toggleTheme);
+if (elements.exportTraitCsvBtn) {
+  elements.exportTraitCsvBtn.addEventListener("click", exportTraitCsv);
+}
 if (elements.paletteToggle && elements.paletteMenu) {
   elements.paletteToggle.addEventListener("click", (e) => {
     e.stopPropagation();

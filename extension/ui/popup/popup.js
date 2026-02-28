@@ -18,9 +18,14 @@ const elements = {
   // addToCalendar: document.getElementById("addToCalendar"), // Disabled until Chrome Web Store publish
   typeAssignment: document.getElementById("typeAssignment"),
   typeExam: document.getElementById("typeExam"),
-  typeEvent: document.getElementById("typeEvent"),
+  typeTask: document.getElementById("typeTask"),
+  // Streak Elements
+  popupStreak: document.getElementById("popupStreak"),
+  popupStreakIcon: document.getElementById("popupStreakIcon"),
+  popupStreakCount: document.getElementById("popupStreakCount"),
   addTaskBtn: document.getElementById("addTaskBtn"),
   saveTaskBtn: document.getElementById("saveTaskBtn"),
+  currentTaskDisplay: document.getElementById("currentTaskDisplay"),
   currentTaskTitle: document.getElementById("currentTaskTitle"),
   progressContainer: document.getElementById("progressContainer"),
   progressBar: document.getElementById("progressBar"),
@@ -31,7 +36,12 @@ const elements = {
   statusCompleted: document.getElementById("statusCompleted"),
   subtasksContainer: document.getElementById("subtasksContainer"),
   subtasksStatus: document.getElementById("subtasksStatus"),
-  subtasksList: document.getElementById("subtasksList"),
+  assignmentList: document.getElementById("assignmentList"),
+  examList: document.getElementById("examList"),
+  taskList: document.getElementById("taskList"),
+  assignmentCount: document.getElementById("assignmentCount"),
+  examCount: document.getElementById("examCount"),
+  taskCountList: document.getElementById("taskCountList"),
   analysisStatus: document.getElementById("analysisStatus"),
   analysisScore: document.getElementById("analysisScore"),
   analysisMeta: document.getElementById("analysisMeta"),
@@ -56,6 +66,7 @@ const elements = {
   timerTime: document.getElementById("timerTime"),
   timerStartBtn: document.getElementById("timerStartBtn"),
   timerPauseBtn: document.getElementById("timerPauseBtn"),
+  timerSkipBtn: document.getElementById("timerSkipBtn"),
   timerResetBtn: document.getElementById("timerResetBtn"),
   pomodoroModeBtn: document.getElementById("pomodoroModeBtn"),
   customModeBtn: document.getElementById("customModeBtn"),
@@ -76,6 +87,8 @@ let tasks = [];
 let currentTaskIndex = 0;
 let selectedTaskType = "assignment";
 let currentPaletteId = "slate";
+const TASK_HISTORY_RETENTION_DAYS = 30;
+let taskHistory = [];
 let notificationSettings = {
   enabled: true,
   distractionAlerts: true,
@@ -83,6 +96,12 @@ let notificationSettings = {
   deadlineReminders: true,
   taskNudges: true,
   focusDuration: 45
+};
+
+let streakData = {
+  count: 0,
+  lastActiveDate: null,
+  isActive: false
 };
 
 let timerState = {
@@ -278,6 +297,7 @@ const updateTimerDisplay = () => {
   elements.timerTime.textContent = formatTime(timerState.timeRemaining);
   elements.timerMode.textContent = timerState.phase === "focus" ? "Focus" : "Rest";
   elements.timerMode.className = `timer-mode ${timerState.phase}`;
+  elements.timerSkipBtn.style.display = timerState.phase === "rest" ? "flex" : "none";
 };
 
 const saveTimerState = () => {
@@ -291,6 +311,19 @@ const saveTimerState = () => {
     pomodoroCount: timerState.pomodoroCount
   };
   chrome.storage.local.set({ timerState: payload });
+};
+
+const scheduleTimerAlarm = () => {
+  if (!timerState.isRunning || timerState.timeRemaining <= 0) return;
+  chrome.runtime.sendMessage({
+    type: "scheduleTimerAlarm",
+    remainingMs: timerState.timeRemaining * 1000,
+    phase: timerState.phase,
+  });
+};
+
+const clearTimerAlarm = () => {
+  chrome.runtime.sendMessage({ type: "clearTimerAlarm" });
 };
 
 const applyTimerButtons = () => {
@@ -348,11 +381,13 @@ const startTimer = () => {
   applyTimerButtons();
   runTimerInterval();
   saveTimerState();
+  scheduleTimerAlarm();
 };
 
 const pauseTimer = () => {
   if (!timerState.isRunning) return;
   
+  clearTimerAlarm();
   syncRemainingFromStart();
   timerState.isRunning = false;
   timerState.startedAt = null;
@@ -369,6 +404,7 @@ const pauseTimer = () => {
 
 const resetTimer = () => {
   pauseTimer();
+  clearTimerAlarm();
   
   const duration = timerState.mode === "pomodoro" 
     ? timerConfig.pomodoro.focus 
@@ -383,6 +419,7 @@ const resetTimer = () => {
 };
 
 const completeTimerPhase = (startTime, phase) => {
+  clearTimerAlarm();
   pauseTimer();
   
   // Save session to history
@@ -406,7 +443,8 @@ const completeTimerPhase = (startTime, phase) => {
       iconUrl: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==',
       title: phase === "focus" ? "Focus Session Complete!" : "Break Complete!",
       message: phase === "focus" ? "Time for a break!" : "Ready to focus again?",
-      priority: 2
+      priority: 2,
+      requireInteraction: true
     });
   }
   
@@ -434,6 +472,23 @@ const completeTimerPhase = (startTime, phase) => {
   timerState.startedAt = null;
   timerState.baseRemaining = null;
   timerState.isRunning = false;
+  applyTimerButtons();
+  saveTimerState();
+};
+
+const skipBreak = () => {
+  if (timerState.phase !== "rest") return;
+  clearTimerAlarm();
+  pauseTimer();
+  timerState.phase = "focus";
+  const focusDuration = timerState.mode === "pomodoro" 
+    ? timerConfig.pomodoro.focus 
+    : timerConfig.custom.focus;
+  timerState.timeRemaining = focusDuration * 60;
+  timerState.startedAt = null;
+  timerState.baseRemaining = null;
+  timerState.isRunning = false;
+  updateTimerDisplay();
   applyTimerButtons();
   saveTimerState();
 };
@@ -495,6 +550,7 @@ const loadTimerState = () => {
         completeTimerPhase(timerState.startedAt || Date.now(), timerState.phase);
         return;
       }
+      scheduleTimerAlarm();
       applyTimerButtons();
       runTimerInterval();
     } else {
@@ -521,6 +577,35 @@ const setTimerMode = (mode) => {
   
   applyTimerModeUI();
   resetTimer();
+};
+
+const loadStreak = () => {
+  return new Promise((resolve) => {
+    chrome.storage.local.get(["streakData"], (result) => {
+      // Just load data for display, dashboard handles the logic update
+      if (result.streakData) {
+        streakData = result.streakData;
+        updateStreakUI();
+      }
+      resolve();
+    });
+  });
+};
+
+const updateStreakUI = () => {
+  if (!elements.popupStreak) return;
+  
+  const count = streakData.count;
+  elements.popupStreakCount.textContent = count;
+  
+  if (count >= 3) {
+    elements.popupStreak.classList.add("active");
+    elements.popupStreak.title = `On fire! ${count} day streak!`;
+  } else {
+    elements.popupStreak.classList.remove("active");
+    const daysLeft = 3 - count;
+    elements.popupStreak.title = `${daysLeft} more day${daysLeft > 1 ? 's' : ''} to ignite!`;
+  }
 };
 
 const loadTheme = () => {
@@ -584,13 +669,27 @@ const togglePanel = (panelToShow) => {
   });
 };
 
+const normalizeTaskType = (type) => {
+  if (type === "event") return "task";
+  return type || "task";
+};
+
 const updateTaskCount = () => {
-  elements.taskCount.textContent = tasks.length;
+  const remaining = tasks.filter((task) => !task.completed).length;
+  elements.taskCount.textContent = remaining;
 };
 
 const loadTasks = () => {
   chrome.storage.local.get(["tasks"], (result) => {
-    tasks = result.tasks || [];
+    let migrated = false;
+    tasks = (result.tasks || []).map((task) => {
+      const type = normalizeTaskType(task.type);
+      if (type !== task.type) migrated = true;
+      return { ...task, type };
+    });
+    if (migrated) {
+      saveTasks();
+    }
     renderTasks();
     updateTaskCount();
   });
@@ -601,24 +700,63 @@ const saveTasks = () => {
   updateTaskCount();
 };
 
+const pruneTaskHistory = (items) => {
+  const cutoff = Date.now() - TASK_HISTORY_RETENTION_DAYS * 86400000;
+  return items.filter((task) => {
+    const stamp = new Date(task.completedAt || task.archivedAt || task.createdAt || Date.now()).getTime();
+    return stamp >= cutoff;
+  });
+};
+
+const loadTaskHistory = () =>
+  new Promise((resolve) => {
+    chrome.storage.local.get(["taskHistory"], (result) => {
+      taskHistory = pruneTaskHistory(Array.isArray(result.taskHistory) ? result.taskHistory : []);
+      chrome.storage.local.set({ taskHistory });
+      resolve(taskHistory);
+    });
+  });
+
+const saveTaskHistory = () => {
+  chrome.storage.local.set({ taskHistory });
+};
+
+const archiveTask = (task) => {
+  if (!task) return;
+  const archivedAt = new Date().toISOString();
+  taskHistory = pruneTaskHistory([{ ...task, archivedAt }, ...taskHistory]).slice(0, 200);
+  saveTaskHistory();
+};
+
+const completeAndArchiveTask = (task) => {
+  if (!task) return;
+  const completedAt = task.completedAt || new Date().toISOString();
+  const archived = { ...task, completed: true, completedAt };
+  archiveTask(archived);
+  tasks = tasks.filter((t) => t.id !== task.id);
+  saveTasks();
+  renderTasks();
+  updateCurrentTask();
+};
+
 const addTask = async () => {
   const description = elements.taskInput.value.trim();
   if (!description) return;
 
-  const deadlineDate = elements.taskDeadlineDate.value;
+  const deadlineDate = getDateValue();
   const deadlineTime = elements.taskDeadlineTime.value;
   
-  // Combine date and time into ISO string
   let deadline = null;
   if (deadlineDate) {
-    const timeStr = deadlineTime || "23:59";
+    const timeStr = deadlineTime ? getTimeValue() : "23:59";
     deadline = `${deadlineDate}T${timeStr}`;
   }
 
+  const taskType = normalizeTaskType(selectedTaskType);
   const newTask = {
     id: Date.now().toString(),
     description,
-    type: selectedTaskType,
+    type: taskType,
     deadline: deadline,
     status: "not-started",
     completed: false,
@@ -643,10 +781,16 @@ const addTask = async () => {
   try {
     const response = await apiRequest("/api/tasks", {
       method: "POST",
-      body: { description, type: selectedTaskType, deadline },
+      body: { title: description, description, type: taskType, deadline },
     });
     if (response.ok && response.data?.subtasks) {
-      // Could update task with subtasks if needed
+      const index = tasks.findIndex((task) => task.id === newTask.id);
+      if (index >= 0) {
+        tasks[index] = { ...tasks[index], subtasks: response.data.subtasks };
+        saveTasks();
+        renderTasks();
+        updateCurrentTask();
+      }
     }
   } catch (error) {
     // Silently fail, task is already added locally
@@ -659,7 +803,6 @@ const addToGoogleCalendar = async (task) => {
     const token = await new Promise((resolve, reject) => {
       chrome.identity.getAuthToken({ interactive: true }, (token) => {
         if (chrome.runtime.lastError) {
-          console.error("OAuth error:", chrome.runtime.lastError);
           reject(chrome.runtime.lastError);
         } else {
           resolve(token);
@@ -668,13 +811,12 @@ const addToGoogleCalendar = async (task) => {
     });
 
     if (!token) {
-      console.error("No token received");
       return false;
     }
 
     // Prepare event data
     const deadline = new Date(task.deadline);
-    const typeEmoji = task.type === "assignment" ? "📝" : task.type === "exam" ? "�" : "📅";
+    const typeEmoji = task.type === "assignment" ? "📝" : task.type === "exam" ? "📝" : "📌";
     const eventData = {
       summary: `${typeEmoji} ${task.description}`,
       description: `Task Type: ${task.type}\nCreated from Focus Tutor Extension`,
@@ -695,8 +837,6 @@ const addToGoogleCalendar = async (task) => {
       },
     };
 
-    console.log("Creating calendar event:", eventData);
-
     // Create calendar event
     const response = await fetch("https://www.googleapis.com/calendar/v3/calendars/primary/events", {
       method: "POST",
@@ -708,42 +848,47 @@ const addToGoogleCalendar = async (task) => {
     });
 
     if (response.ok) {
-      const result = await response.json();
-      console.log("Event added to Google Calendar successfully:", result);
+      await response.json();
       return true;
     } else {
-      const error = await response.text();
-      console.error("Failed to add event to Google Calendar:", error);
+      await response.text();
       return false;
     }
   } catch (error) {
-    console.error("Error adding to Google Calendar:", error);
     return false;
   }
 };
 
 const setTaskType = (type) => {
-  selectedTaskType = type;
-  [elements.typeAssignment, elements.typeExam, elements.typeEvent].forEach((btn) => {
+  selectedTaskType = normalizeTaskType(type);
+  [elements.typeAssignment, elements.typeExam, elements.typeTask].forEach((btn) => {
     btn.classList.remove("active");
   });
   
-  if (type === "assignment") {
+  if (selectedTaskType === "assignment") {
     elements.typeAssignment.classList.add("active");
-  } else if (type === "exam") {
+  } else if (selectedTaskType === "exam") {
     elements.typeExam.classList.add("active");
-  } else if (type === "event") {
-    elements.typeEvent.classList.add("active");
+  } else {
+    elements.typeTask.classList.add("active");
   }
 };
 
 const toggleTask = (taskId) => {
   const task = tasks.find((t) => t.id === taskId);
   if (task) {
-    task.completed = !task.completed;
-    if (task.completed && !task.status) {
-      task.status = "completed";
+    if (!task.completed) {
+      const completedTask = {
+        ...task,
+        completed: true,
+        status: task.status || "completed",
+        completedAt: new Date().toISOString(),
+      };
+      completeAndArchiveTask(completedTask);
+      return;
     }
+    task.completed = false;
+    task.completedAt = null;
     saveTasks();
     renderTasks();
     updateCurrentTask();
@@ -757,12 +902,14 @@ const updateCurrentTask = () => {
   if (!activeTask) {
     elements.currentTaskTitle.textContent = "No active task";
     elements.progressContainer.style.display = "none";
+    elements.currentTaskDisplay.classList.remove("compact");
     return;
   }
 
   currentTaskIndex = tasks.indexOf(activeTask);
   elements.currentTaskTitle.textContent = activeTask.description;
   elements.progressContainer.style.display = "block";
+  elements.currentTaskDisplay.classList.add("compact");
   
   // Update progress bar and status buttons
   const status = activeTask.status || "not-started";
@@ -799,7 +946,13 @@ const setTaskStatus = (status) => {
   
   activeTask.status = status;
   if (status === "completed") {
-    activeTask.completed = true;
+    const completedTask = {
+      ...activeTask,
+      completed: true,
+      completedAt: new Date().toISOString(),
+    };
+    completeAndArchiveTask(completedTask);
+    return;
   }
   
   saveTasks();
@@ -923,16 +1076,8 @@ const deleteTask = (taskId) => {
   updateCurrentTask();
 };
 
-const renderTasks = () => {
-  if (tasks.length === 0) {
-    elements.subtasksStatus.style.display = "block";
-    elements.subtasksStatus.textContent = "No tasks yet";
-    elements.subtasksList.innerHTML = "";
-    return;
-  }
-
-  elements.subtasksStatus.style.display = "none";
-  elements.subtasksList.innerHTML = tasks
+const renderTaskList = (listEl, items) => {
+  listEl.innerHTML = items
     .map(
       (task) => `
       <li>
@@ -949,6 +1094,28 @@ const renderTasks = () => {
     `
     )
     .join("");
+};
+
+const renderTasks = () => {
+  const assignments = tasks.filter((task) => task.type === "assignment");
+  const exams = tasks.filter((task) => task.type === "exam");
+  const misc = tasks.filter((task) => task.type === "task" || !task.type);
+
+  elements.assignmentCount.textContent = assignments.length;
+  elements.examCount.textContent = exams.length;
+  elements.taskCountList.textContent = misc.length;
+
+  renderTaskList(elements.assignmentList, assignments);
+  renderTaskList(elements.examList, exams);
+  renderTaskList(elements.taskList, misc);
+
+  const total = assignments.length + exams.length + misc.length;
+  if (total === 0) {
+    elements.subtasksStatus.style.display = "block";
+    elements.subtasksStatus.textContent = "No tasks yet";
+  } else {
+    elements.subtasksStatus.style.display = "none";
+  }
 
   document.querySelectorAll('.task-list input[type="checkbox"]').forEach((checkbox) => {
     checkbox.addEventListener("change", (e) => {
@@ -1127,6 +1294,7 @@ const init = async () => {
   loadTheme();
   loadPalette();
   loadTasks();
+  await loadTaskHistory();
   loadNotificationSettings();
   await loadTimerConfig();
   loadTimerState();
@@ -1216,8 +1384,8 @@ elements.typeExam.addEventListener("click", () => {
   setTaskType("exam");
 });
 
-elements.typeEvent.addEventListener("click", () => {
-  setTaskType("event");
+elements.typeTask.addEventListener("click", () => {
+  setTaskType("task");
 });
 
 // Notification settings event listeners
@@ -1241,6 +1409,7 @@ document.querySelectorAll(".palette-dot-btn").forEach((btn) => {
 // Timer event listeners
 elements.timerStartBtn.addEventListener("click", startTimer);
 elements.timerPauseBtn.addEventListener("click", pauseTimer);
+elements.timerSkipBtn.addEventListener("click", skipBreak);
 elements.timerResetBtn.addEventListener("click", resetTimer);
 
 elements.pomodoroModeBtn.addEventListener("click", () => setTimerMode("pomodoro"));
@@ -1415,6 +1584,7 @@ function selectHour(hour, element) {
   selectedTime.hour = hour;
   elements.hourScroll.querySelectorAll('.time-option').forEach(el => el.classList.remove('selected'));
   element.classList.add('selected');
+  element.scrollIntoView({ block: 'center' });
   updateTimeDisplay();
 }
 
@@ -1422,6 +1592,7 @@ function selectMinute(minute, element) {
   selectedTime.minute = minute;
   elements.minuteScroll.querySelectorAll('.time-option').forEach(el => el.classList.remove('selected'));
   element.classList.add('selected');
+  element.scrollIntoView({ block: 'center' });
   updateTimeDisplay();
 }
 
@@ -1429,13 +1600,67 @@ function selectPeriod(period, element) {
   selectedTime.period = period;
   elements.periodScroll.querySelectorAll('.time-option').forEach(el => el.classList.remove('selected'));
   element.classList.add('selected');
+  element.scrollIntoView({ block: 'center' });
   updateTimeDisplay();
+}
+
+function applyTimeSelection() {
+  const hourOption = elements.hourScroll.querySelector(`[data-value="${selectedTime.hour}"]`);
+  if (hourOption) {
+    elements.hourScroll.querySelectorAll('.time-option').forEach(el => el.classList.remove('selected'));
+    hourOption.classList.add('selected');
+    hourOption.scrollIntoView({ block: 'center' });
+  }
+  const minuteOption = elements.minuteScroll.querySelector(`[data-value="${selectedTime.minute}"]`);
+  if (minuteOption) {
+    elements.minuteScroll.querySelectorAll('.time-option').forEach(el => el.classList.remove('selected'));
+    minuteOption.classList.add('selected');
+    minuteOption.scrollIntoView({ block: 'center' });
+  }
+  const periodOption = elements.periodScroll.querySelector(`[data-value="${selectedTime.period}"]`);
+  if (periodOption) {
+    elements.periodScroll.querySelectorAll('.time-option').forEach(el => el.classList.remove('selected'));
+    periodOption.classList.add('selected');
+    periodOption.scrollIntoView({ block: 'center' });
+  }
 }
 
 function updateTimeDisplay() {
   const hourStr = selectedTime.hour.toString().padStart(2, '0');
   const minuteStr = selectedTime.minute.toString().padStart(2, '0');
   elements.taskDeadlineTime.value = `${hourStr}:${minuteStr} ${selectedTime.period}`;
+}
+
+function parseTimeInput(value) {
+  const trimmed = value.trim().toUpperCase();
+  if (!trimmed) return null;
+  const match = trimmed.match(/^(\d{1,2})(?::(\d{1,2}))?\s*(AM|PM)?$/);
+  if (!match) return null;
+  const rawHour = Number(match[1]);
+  const rawMinute = Number(match[2] || 0);
+  const period = match[3];
+  if (!Number.isFinite(rawHour) || !Number.isFinite(rawMinute)) return null;
+  if (rawMinute < 0 || rawMinute > 59) return null;
+  let hour = rawHour;
+  let resolvedPeriod = period;
+  if (period) {
+    if (rawHour < 1 || rawHour > 12) return null;
+    hour = rawHour;
+  } else if (rawHour >= 0 && rawHour <= 23) {
+    if (rawHour === 0) {
+      hour = 12;
+      resolvedPeriod = "AM";
+    } else if (rawHour > 12) {
+      hour = rawHour - 12;
+      resolvedPeriod = "PM";
+    } else {
+      hour = rawHour;
+      resolvedPeriod = rawHour === 12 ? "PM" : "AM";
+    }
+  } else {
+    return null;
+  }
+  return { hour, minute: rawMinute, period: resolvedPeriod };
 }
 
 function getTimeValue() {
@@ -1452,6 +1677,21 @@ function getTimeValue() {
 elements.taskDeadlineTime.addEventListener('click', () => {
   const isVisible = elements.timePickerDropdown.style.display === 'flex';
   elements.timePickerDropdown.style.display = isVisible ? 'none' : 'flex';
+  if (!isVisible) {
+    applyTimeSelection();
+  }
+});
+
+elements.taskDeadlineTime.addEventListener('input', () => {
+  const parsed = parseTimeInput(elements.taskDeadlineTime.value);
+  if (!parsed) return;
+  selectedTime = parsed;
+  applyTimeSelection();
+});
+
+elements.taskDeadlineTime.addEventListener('blur', () => {
+  if (!elements.taskDeadlineTime.value) return;
+  updateTimeDisplay();
 });
 
 // Close pickers when clicking outside

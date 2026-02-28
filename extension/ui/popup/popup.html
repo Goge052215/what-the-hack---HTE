@@ -16,7 +16,13 @@
           <span class="task-count" id="taskCount">0</span>
           📋
         </button>
-        <button id="settingsBtn" class="icon-btn" aria-label="Settings" title="Settings">⚙️</button>
+        <div class="header-right">
+          <div id="popupStreak" class="popup-streak" title="Daily Streak">
+            <span id="popupStreakIcon">🔥</span>
+            <span id="popupStreakCount">0</span>
+          </div>
+          <button id="settingsBtn" class="icon-btn" aria-label="Settings" title="Settings">⚙️</button>
+        </div>
       </div>
 
       <!-- Current Task Display -->
@@ -52,7 +58,7 @@
         <div class="task-type-selector">
           <button id="typeAssignment" class="task-type-btn active" data-type="assignment">📝 Assignment</button>
           <button id="typeExam" class="task-type-btn" data-type="exam">📝 Exam</button>
-          <button id="typeEvent" class="task-type-btn" data-type="event">📅 Event</button>
+          <button id="typeTask" class="task-type-btn" data-type="task">📌 Task</button>
         </div>
         
         <label for="taskDeadlineDate">Deadline</label>
@@ -75,7 +81,7 @@
             </div>
           </div>
           <div class="custom-time-picker">
-            <input id="taskDeadlineTime" type="text" readonly placeholder="--:-- --" />
+            <input id="taskDeadlineTime" type="text" placeholder="--:-- --" />
             <span class="input-icon">🕐</span>
             <div id="timePickerDropdown" class="time-picker-dropdown" style="display: none;">
               <div class="time-picker-column">
@@ -272,7 +278,29 @@
         <h3>Your Tasks</h3>
         <div id="subtasksContainer">
           <p id="subtasksStatus">No tasks yet</p>
-          <ul id="subtasksList" class="task-list"></ul>
+          <div class="task-bins">
+            <div class="task-bin">
+              <div class="task-bin-header">
+                <span>Assignments</span>
+                <span id="assignmentCount" class="task-bin-count">0</span>
+              </div>
+              <ul id="assignmentList" class="task-list"></ul>
+            </div>
+            <div class="task-bin">
+              <div class="task-bin-header">
+                <span>Exams</span>
+                <span id="examCount" class="task-bin-count">0</span>
+              </div>
+              <ul id="examList" class="task-list"></ul>
+            </div>
+            <div class="task-bin">
+              <div class="task-bin-header">
+                <span>Tasks</span>
+                <span id="taskCountList" class="task-bin-count">0</span>
+              </div>
+              <ul id="taskList" class="task-list"></ul>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -285,6 +313,7 @@
         <div class="timer-controls">
           <button id="timerStartBtn" class="timer-btn">▶</button>
           <button id="timerPauseBtn" class="timer-btn" style="display: none;">⏸</button>
+          <button id="timerSkipBtn" class="timer-btn" style="display: none;">⏭</button>
           <button id="timerResetBtn" class="timer-btn">🔄</button>
         </div>
       </div>
