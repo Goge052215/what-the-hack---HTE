@@ -6,7 +6,7 @@ const elements = {
   taskInput: document.getElementById("taskInput"),
   taskDeadlineDate: document.getElementById("taskDeadlineDate"),
   taskDeadlineTime: document.getElementById("taskDeadlineTime"),
-  addToCalendar: document.getElementById("addToCalendar"),
+  // addToCalendar: document.getElementById("addToCalendar"), // Disabled until Chrome Web Store publish
   typeAssignment: document.getElementById("typeAssignment"),
   typeExam: document.getElementById("typeExam"),
   typeEvent: document.getElementById("typeEvent"),
@@ -100,7 +100,6 @@ const addTask = async () => {
 
   const deadlineDate = elements.taskDeadlineDate.value;
   const deadlineTime = elements.taskDeadlineTime.value;
-  const addToCalendar = elements.addToCalendar.checked;
   
   // Combine date and time into ISO string
   let deadline = null;
@@ -124,21 +123,13 @@ const addTask = async () => {
   renderTasks();
   updateCurrentTask();
   
-  // Add to Google Calendar if checked
-  if (addToCalendar && deadline) {
-    const success = await addToGoogleCalendar(newTask);
-    if (success) {
-      alert("✅ Task added to Google Calendar!");
-    } else {
-      alert("⚠️ Could not add to Google Calendar. Please check permissions.");
-    }
-  }
+  // Google Calendar integration disabled until Chrome Web Store publication
+  // Will be enabled when extension is published and OAuth is configured
   
   // Reset form
   elements.taskInput.value = "";
   elements.taskDeadlineDate.value = "";
   elements.taskDeadlineTime.value = "";
-  elements.addToCalendar.checked = false;
   elements.addTaskPanel.style.display = "none";
   
   // Optionally call API to split task
