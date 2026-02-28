@@ -896,7 +896,13 @@ const renderAiSuggestions = (task) => {
     })
     .join("");
   if (suggestions.length === 0) {
-    setAiSuggestionStatus("No suggestions yet.");
+    if (task.aiSuggestionSource === "unavailable") {
+      setAiSuggestionStatus("Suggestions unavailable.");
+    } else if (task.aiSuggestionEventCreated) {
+      setAiSuggestionStatus("Event created.");
+    } else {
+      setAiSuggestionStatus("No suggestions yet.");
+    }
   } else {
     setAiSuggestionStatus("");
   }
@@ -958,6 +964,14 @@ const createSuggestionCalendarEvent = async (task, suggestion) => {
     }
   );
   if (response.ok) {
+    task.aiSuggestionEventCreated = true;
+    if (task.aiSuggestionSource === "local") {
+      task.aiSuggestionSlots = [];
+      task.aiSuggestionSource = "unavailable";
+    }
+    saveTasks();
+    renderTasks();
+    updateCurrentTask();
     setAiSuggestionStatus("Event created.");
     return;
   }
@@ -991,34 +1005,29 @@ const fetchAiSuggestions = async (task, force = false) => {
         },
       },
     });
-    if (response.ok && Array.isArray(response.data?.suggestions)) {
-      task.aiSuggestionSlots = response.data.suggestions.slice(0, 5);
-      task.aiSuggestionSource = response.data?.source || "minimax";
+    const suggestions = response.data?.suggestions || response.suggestions;
+    if (Array.isArray(suggestions) && suggestions.length > 0) {
+      task.aiSuggestionSlots = suggestions.slice(0, 5);
+      task.aiSuggestionSource = response.data?.source || response.source || "minimax";
       saveTasks();
       renderTasks();
       updateCurrentTask();
       setAiSuggestionStatus("Suggestions ready.");
     } else {
-      task.aiSuggestionSlots = buildLocalSuggestionSlots({
-        type: task?.type,
-        deadline: task?.deadline,
-      });
-      task.aiSuggestionSource = "local";
+      task.aiSuggestionSlots = [];
+      task.aiSuggestionSource = "unavailable";
       saveTasks();
       renderTasks();
       updateCurrentTask();
-      setAiSuggestionStatus("Local suggestions ready.");
+      setAiSuggestionStatus("Suggestions unavailable.");
     }
   } catch (error) {
-    task.aiSuggestionSlots = buildLocalSuggestionSlots({
-      type: task?.type,
-      deadline: task?.deadline,
-    });
-    task.aiSuggestionSource = "local";
+    task.aiSuggestionSlots = [];
+    task.aiSuggestionSource = "unavailable";
     saveTasks();
     renderTasks();
     updateCurrentTask();
-    setAiSuggestionStatus("Local suggestions ready.");
+    setAiSuggestionStatus("Suggestions unavailable.");
   }
   if (elements.aiSuggestBtn) {
     elements.aiSuggestBtn.disabled = false;
@@ -1823,32 +1832,6 @@ const findRevisionDojoTopic = (text) => {
     }
   }
   return null;
-};
-
-const buildLocalSuggestionSlots = ({ type, deadline }) => {
-  const base = deadline ? new Date(deadline) : new Date(Date.now() + 2 * 60 * 60 * 1000);
-  const isValidBase = !Number.isNaN(base.getTime());
-  const anchor = isValidBase ? base : new Date(Date.now() + 2 * 60 * 60 * 1000);
-  const addHours = (date, hours) => new Date(date.getTime() + hours * 60 * 60 * 1000);
-  if (type === "exam") {
-    return [
-      { title: "Exam revision session", start: addHours(anchor, -120).toISOString(), durationMin: 60 },
-      { title: "Practice exam questions", start: addHours(anchor, -48).toISOString(), durationMin: 45 },
-      { title: "Final review checklist", start: addHours(anchor, -24).toISOString(), durationMin: 30 },
-    ];
-  }
-  if (type === "assignment") {
-    return [
-      { title: "Practice after class", start: addHours(anchor, -72).toISOString(), durationMin: 45 },
-      { title: "Midway check-in", start: addHours(anchor, -36).toISOString(), durationMin: 30 },
-      { title: "Final polish", start: addHours(anchor, -12).toISOString(), durationMin: 30 },
-    ];
-  }
-  return [
-    { title: "Relaxation break", start: addHours(anchor, 1).toISOString(), durationMin: 20 },
-    { title: "Follow-up session", start: addHours(anchor, 24).toISOString(), durationMin: 30 },
-    { title: "Quick review", start: addHours(anchor, 48).toISOString(), durationMin: 30 },
-  ];
 };
 
 const updateRevisionDojoLink = (entries) => {

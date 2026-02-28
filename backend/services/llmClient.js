@@ -1,4 +1,5 @@
 const { spawn } = require("child_process");
+const path = require("path");
 const env = require("../config/env");
 
 const buildMinimaxHeaders = () => ({
@@ -239,4 +240,78 @@ const createScheduleSuggestions = async (prompt) => {
   });
 };
 
-module.exports = { createInsight, createSchedulePlan, createScheduleSuggestions };
+const createScheduleSuggestionsViaApi = async ({ description, type, deadline } = {}) => {
+  const pythonScript = `
+import json, sys, os
+payload = json.loads(sys.stdin.read() or "{}")
+client_path = os.getenv("FOCUS_TUTOR_API_CLIENT_PATH")
+if client_path:
+    sys.path.insert(0, client_path)
+try:
+    import api as api_client
+except Exception:
+    sys.stdout.write(json.dumps({"ok": False, "error": "missing_client"}))
+    sys.exit(0)
+description = payload.get("description") or ""
+task_type = payload.get("type") or "task"
+deadline = payload.get("deadline")
+base_url = payload.get("base_url")
+result = api_client.schedule_suggestions(description, task_type=task_type, deadline=deadline, base_url=base_url)
+sys.stdout.write(json.dumps(result))
+`.trim();
+  return new Promise((resolve) => {
+    const proc = spawn(env.pythonPath, ["-c", pythonScript], {
+      env: {
+        ...process.env,
+        FOCUS_TUTOR_API_CLIENT_PATH: path.resolve(__dirname, "../../extension/ui/api"),
+      },
+    });
+    let stdout = "";
+    let stderr = "";
+    proc.stdout.on("data", (chunk) => {
+      stdout += chunk.toString();
+    });
+    proc.stderr.on("data", (chunk) => {
+      stderr += chunk.toString();
+    });
+    proc.on("error", () => {
+      resolve({ ok: false, error: "python_failed" });
+    });
+    proc.on("close", () => {
+      if (stderr) {
+        resolve({ ok: false, error: "python_error" });
+        return;
+      }
+      try {
+        const parsed = JSON.parse(stdout || "{}");
+        const suggestions = parsed?.data?.suggestions;
+        if (parsed?.ok && Array.isArray(suggestions) && suggestions.length > 0) {
+          resolve({
+            ok: true,
+            suggestions,
+            source: parsed?.data?.source || "api",
+          });
+          return;
+        }
+        resolve({ ok: false, error: parsed?.error || "invalid_response" });
+      } catch {
+        resolve({ ok: false, error: "invalid_response" });
+      }
+    });
+    const payload = {
+      description,
+      type,
+      deadline,
+      base_url: process.env.FOCUS_TUTOR_API_BASE_URL || undefined,
+    };
+    proc.stdin.write(JSON.stringify(payload));
+    proc.stdin.end();
+  });
+};
+
+module.exports = {
+  createInsight,
+  createSchedulePlan,
+  createScheduleSuggestions,
+  createScheduleSuggestionsViaApi,
+};
