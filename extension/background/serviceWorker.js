@@ -400,7 +400,5 @@ chrome.notifications.onButtonClicked.addListener((notificationId, buttonIndex) =
     }
   }
 });
-
-// Initialize FocusPet modules (Person 3's tab monitoring system)
 FocusPet.Messaging.init();
 FocusPet.Alarms.init();
