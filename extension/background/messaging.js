@@ -125,7 +125,7 @@ FocusPet.Messaging = {
             if (settings.enableNotifications) {
               chrome.notifications.create("focus_" + Date.now(), {
                 type: "basic",
-                iconUrl: "icons/icon48.png",
+                iconUrl: "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==",
                 title: "FocusPet - Stay on Track!",
                 message: "It looks like you might be distracted. Want to get back to your task?"
               });

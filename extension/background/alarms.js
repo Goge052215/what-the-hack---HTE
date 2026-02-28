@@ -81,7 +81,7 @@ FocusPet.Alarms = {
                   if (settings.enableNotifications) {
                     chrome.notifications.create("focus_" + Date.now(), {
                       type: "basic",
-                      iconUrl: "icons/icon48.png",
+                      iconUrl: "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==",
                       title: "FocusPet - Stay Focused!",
                       message: result.message || "You seem to be off-task. Time to refocus!"
                     });
@@ -104,7 +104,7 @@ FocusPet.Alarms = {
         if (settings.enableNotifications) {
           chrome.notifications.create("break_" + Date.now(), {
             type: "basic",
-            iconUrl: "icons/icon48.png",
+            iconUrl: "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==",
             title: "FocusPet - Break Time!",
             message: session && session.taskName
               ? 'Great work on "' + session.taskName + '"! Take a short break.'

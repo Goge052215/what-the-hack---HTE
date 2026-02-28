@@ -344,7 +344,7 @@ const completeTimerPhase = (startTime, phase) => {
   if (notificationSettings.enabled) {
     chrome.notifications.create({
       type: 'basic',
-      iconUrl: chrome.runtime.getURL('icon.png'),
+      iconUrl: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==',
       title: phase === "focus" ? "Focus Session Complete!" : "Break Complete!",
       message: phase === "focus" ? "Time for a break!" : "Ready to focus again?",
       priority: 2
