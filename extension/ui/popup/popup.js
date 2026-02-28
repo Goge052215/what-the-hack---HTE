@@ -641,24 +641,32 @@ const testAllNotifications = async () => {
   const iconUrl = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==';
   
   try {
-    // First, show a simple test notification immediately
-    console.log('Creating test notification NOW...');
-    chrome.notifications.create('test-simple', {
-      type: 'basic',
-      iconUrl: iconUrl,
-      title: '✅ Focus Tutor Test',
-      message: 'If you see this, notifications are working!',
-      priority: 2,
-      requireInteraction: false
-    }, (notificationId) => {
-      if (chrome.runtime.lastError) {
-        console.error('Error creating notification:', chrome.runtime.lastError);
-        alert('❌ Error: ' + chrome.runtime.lastError.message);
-      } else {
-        console.log('✅ Test notification created:', notificationId);
-        alert('✅ Test notification sent! Check your system notifications.');
-      }
+    // Test from background worker first
+    console.log('Testing notification from background worker...');
+    chrome.runtime.sendMessage({ type: 'testNotification' }, (response) => {
+      console.log('Background test response:', response);
     });
+    
+    // Wait a moment, then test from popup
+    setTimeout(() => {
+      console.log('Creating test notification from popup NOW...');
+      chrome.notifications.create('test-simple', {
+        type: 'basic',
+        iconUrl: iconUrl,
+        title: '✅ Popup Test',
+        message: 'This notification is from the popup!',
+        priority: 2,
+        requireInteraction: false
+      }, (notificationId) => {
+        if (chrome.runtime.lastError) {
+          console.error('Error creating notification:', chrome.runtime.lastError);
+          alert('❌ Error: ' + chrome.runtime.lastError.message);
+        } else {
+          console.log('✅ Test notification created:', notificationId);
+          alert('✅ Sent 2 test notifications!\n\n1. From background worker\n2. From popup\n\nCheck:\n- Top-right corner of screen\n- Chrome notification icon in menu bar\n- System Notification Center');
+        }
+      });
+    }, 1000);
     
     // Wait a bit, then show the full suite
     setTimeout(() => {

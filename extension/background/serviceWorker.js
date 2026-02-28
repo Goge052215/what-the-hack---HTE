@@ -82,6 +82,15 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     focusStartTime = null;
     sendResponse({ ok: true });
   }
+  if (message?.type === "testNotification") {
+    console.log('Background: Creating test notification...');
+    showNotification(
+      'bg-test-' + Date.now(),
+      '🔔 Background Test',
+      'This notification is from the background service worker!'
+    );
+    sendResponse({ ok: true });
+  }
   return false;
 });
 
@@ -110,13 +119,22 @@ async function getTasks() {
 }
 
 function showNotification(id, title, message, buttons = []) {
+  // Use data URL for icon since we don't have icon files
+  const iconUrl = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==';
+  
   chrome.notifications.create(id, {
     type: "basic",
-    iconUrl: "../assets/icon128.png",
+    iconUrl: iconUrl,
     title: title,
     message: message,
     buttons: buttons,
     priority: 2
+  }, (notificationId) => {
+    if (chrome.runtime.lastError) {
+      console.error('Notification error:', chrome.runtime.lastError);
+    } else {
+      console.log('Notification created:', notificationId);
+    }
   });
 }
 
