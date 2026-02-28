@@ -1,11 +1,10 @@
 import { apiRequest, getApiBaseUrl, setApiBaseUrl } from "../ui/api/client.js";
 
 const elements = {
-  status: document.getElementById("status"),
   apiBaseUrl: document.getElementById("apiBaseUrl"),
   saveApiBaseUrl: document.getElementById("saveApiBaseUrl"),
   taskInput: document.getElementById("taskInput"),
-  splitTask: document.getElementById("splitTask"),
+  addTaskBtn: document.getElementById("addTaskBtn"),
   subtasksContainer: document.getElementById("subtasksContainer"),
   subtasksStatus: document.getElementById("subtasksStatus"),
   subtasksList: document.getElementById("subtasksList"),
@@ -14,7 +13,14 @@ const elements = {
   analysisMeta: document.getElementById("analysisMeta"),
   analysisList: document.getElementById("analysisList"),
   themeToggle: document.getElementById("themeToggle"),
+  settingsBtn: document.getElementById("settingsBtn"),
+  taskListBtn: document.getElementById("taskListBtn"),
+  taskCount: document.getElementById("taskCount"),
+  settingsPanel: document.getElementById("settingsPanel"),
+  taskListPanel: document.getElementById("taskListPanel"),
 };
+
+let tasks = [];
 
 const loadTheme = () => {
   chrome.storage.local.get(["theme"], (result) => {
@@ -40,8 +46,104 @@ const toggleTheme = () => {
   chrome.storage.local.set({ theme: newTheme });
 };
 
-const renderStatus = () => {
-  elements.status.textContent = "Guest mode";
+const togglePanel = (panelToShow) => {
+  const panels = [elements.settingsPanel, elements.taskListPanel];
+  panels.forEach((panel) => {
+    if (panel === panelToShow) {
+      panel.style.display = panel.style.display === "none" ? "block" : "none";
+    } else {
+      panel.style.display = "none";
+    }
+  });
+};
+
+const updateTaskCount = () => {
+  elements.taskCount.textContent = tasks.length;
+};
+
+const loadTasks = () => {
+  chrome.storage.local.get(["tasks"], (result) => {
+    tasks = result.tasks || [];
+    renderTasks();
+    updateTaskCount();
+  });
+};
+
+const saveTasks = () => {
+  chrome.storage.local.set({ tasks });
+  updateTaskCount();
+};
+
+const addTask = async () => {
+  const description = elements.taskInput.value.trim();
+  if (!description) return;
+
+  const newTask = {
+    id: Date.now().toString(),
+    description,
+    completed: false,
+    createdAt: new Date().toISOString(),
+  };
+
+  tasks.push(newTask);
+  saveTasks();
+  renderTasks();
+  elements.taskInput.value = "";
+  
+  // Optionally call API to split task
+  try {
+    const response = await apiRequest("/api/tasks", {
+      method: "POST",
+      body: { description },
+    });
+    if (response.ok && response.data?.subtasks) {
+      // Could update task with subtasks if needed
+    }
+  } catch (error) {
+    // Silently fail, task is already added locally
+  }
+};
+
+const toggleTask = (taskId) => {
+  const task = tasks.find((t) => t.id === taskId);
+  if (task) {
+    task.completed = !task.completed;
+    saveTasks();
+    renderTasks();
+  }
+};
+
+const renderTasks = () => {
+  if (tasks.length === 0) {
+    elements.subtasksStatus.style.display = "block";
+    elements.subtasksStatus.textContent = "No tasks yet";
+    elements.subtasksList.innerHTML = "";
+    return;
+  }
+
+  elements.subtasksStatus.style.display = "none";
+  elements.subtasksList.innerHTML = tasks
+    .map(
+      (task) => `
+      <li>
+        <input 
+          type="checkbox" 
+          ${task.completed ? "checked" : ""}
+          data-task-id="${task.id}"
+        />
+        <label style="${task.completed ? "text-decoration: line-through; opacity: 0.6;" : ""}">
+          ${task.description}
+        </label>
+      </li>
+    `
+    )
+    .join("");
+
+  document.querySelectorAll('.task-list input[type="checkbox"]').forEach((checkbox) => {
+    checkbox.addEventListener("change", (e) => {
+      toggleTask(e.target.dataset.taskId);
+    });
+  });
 };
 
 const fetchWithTimeout = async (url, options = {}, timeoutMs = 2000) => {
@@ -140,64 +242,13 @@ const analyzeTabs = async () => {
 
 const init = async () => {
   loadTheme();
+  loadTasks();
   const baseUrl = await ensureApiBaseUrl();
   elements.apiBaseUrl.value = baseUrl;
-  renderStatus();
   await analyzeTabs();
   setInterval(analyzeTabs, 30000);
 };
 
-const splitTask = async () => {
-  const taskDescription = elements.taskInput.value.trim();
-  if (!taskDescription) {
-    elements.subtasksStatus.textContent = "Please enter a task description";
-    elements.subtasksContainer.style.display = "block";
-    return;
-  }
-  
-  elements.subtasksContainer.style.display = "block";
-  elements.subtasksStatus.textContent = "Splitting task...";
-  elements.subtasksList.innerHTML = "";
-  
-  try {
-    const response = await apiRequest("/api/tasks", {
-      method: "POST",
-      body: { description: taskDescription },
-    });
-    
-    if (!response.ok) {
-      elements.subtasksStatus.textContent = "Failed to split task. Using local split.";
-      const localSubtasks = [
-        `Research: ${taskDescription}`,
-        `Outline: ${taskDescription}`,
-        `Execute: ${taskDescription}`,
-        `Review: ${taskDescription}`,
-      ];
-      renderSubtasks(localSubtasks);
-      return;
-    }
-    
-    const subtasks = response.data?.subtasks || [];
-    if (subtasks.length === 0) {
-      elements.subtasksStatus.textContent = "No subtasks generated";
-      return;
-    }
-    
-    elements.subtasksStatus.textContent = `Split into ${subtasks.length} subtasks:`;
-    renderSubtasks(subtasks);
-  } catch (error) {
-    elements.subtasksStatus.textContent = "Error splitting task";
-  }
-};
-
-const renderSubtasks = (subtasks) => {
-  elements.subtasksList.innerHTML = subtasks
-    .map(
-      (subtask, index) =>
-        `<li><input type="checkbox" id="subtask-${index}" /><label for="subtask-${index}">${subtask}</label></li>`
-    )
-    .join("");
-};
 
 elements.saveApiBaseUrl.addEventListener("click", async () => {
   const value = elements.apiBaseUrl.value.trim();
@@ -205,15 +256,23 @@ elements.saveApiBaseUrl.addEventListener("click", async () => {
   await setApiBaseUrl(value);
 });
 
-elements.splitTask.addEventListener("click", splitTask);
+elements.addTaskBtn.addEventListener("click", addTask);
 
 elements.taskInput.addEventListener("keypress", (e) => {
   if (e.key === "Enter") {
-    splitTask();
+    addTask();
   }
 });
 
 elements.themeToggle.addEventListener("click", toggleTheme);
+
+elements.settingsBtn.addEventListener("click", () => {
+  togglePanel(elements.settingsPanel);
+});
+
+elements.taskListBtn.addEventListener("click", () => {
+  togglePanel(elements.taskListPanel);
+});
 
 /*
 elements.login.addEventListener("click", async () => {});
