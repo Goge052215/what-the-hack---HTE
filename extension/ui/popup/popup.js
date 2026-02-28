@@ -638,16 +638,28 @@ const testAllNotifications = async () => {
   console.log('Testing notifications...');
   
   try {
-    // Request notification permission first
-    const granted = await chrome.permissions.request({ permissions: ['notifications'] });
-    console.log('Permission granted:', granted);
+    // First, show a simple test notification immediately
+    console.log('Creating test notification NOW...');
+    chrome.notifications.create('test-simple', {
+      type: 'basic',
+      title: '✅ Focus Tutor Test',
+      message: 'If you see this, notifications are working!',
+      priority: 2,
+      requireInteraction: false
+    }, (notificationId) => {
+      if (chrome.runtime.lastError) {
+        console.error('Error creating notification:', chrome.runtime.lastError);
+        alert('❌ Error: ' + chrome.runtime.lastError.message);
+      } else {
+        console.log('✅ Test notification created:', notificationId);
+        alert('✅ Test notification sent! Check your system notifications.');
+      }
+    });
     
-    if (!granted) {
-      alert('Please enable notifications to test!');
-      return;
-    }
-    
-    alert('Testing all notifications! You should see 6 notifications over the next 10 seconds.');
+    // Wait a bit, then show the full suite
+    setTimeout(() => {
+      alert('Now sending 6 more notifications over 10 seconds...');
+    }, 2000);
     
     // Test 1: Distraction Alert
     setTimeout(() => {
@@ -660,7 +672,7 @@ const testAllNotifications = async () => {
       }, (notificationId) => {
         console.log('Distraction notification created:', notificationId);
       });
-    }, 500);
+    }, 3000);
     
     // Test 2: Break Reminder
     setTimeout(() => {
