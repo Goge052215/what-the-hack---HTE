@@ -31,7 +31,6 @@ const elements = {
   darkThemeBtn: document.getElementById("darkThemeBtn"),
   autoThemeBtn: document.getElementById("autoThemeBtn"),
   openDashboardBtn: document.getElementById("openDashboardBtn"),
-  testNotificationsBtn: document.getElementById("testNotificationsBtn"),
   enableNotifications: document.getElementById("enableNotifications"),
   distractionAlerts: document.getElementById("distractionAlerts"),
   breakReminders: document.getElementById("breakReminders"),
@@ -634,81 +633,6 @@ const saveNotificationSettings = () => {
   }
 };
 
-const testAllNotifications = async () => {
-  console.log('Testing notifications...');
-  
-  // Simple 1x1 transparent PNG as data URL (Chrome requires iconUrl)
-  const iconUrl = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==';
-  
-  try {
-    alert('Sending all 6 test notifications now! Check your notifications.');
-    
-    // Create all notifications immediately (no delays)
-    
-    // Test 1: Distraction Alert
-    chrome.notifications.create('test-distraction', {
-      type: 'basic',
-      iconUrl: iconUrl,
-      title: '👋 Hey! Get back to your task',
-      message: 'You\'ve been switching tabs a lot. Time to refocus on what matters!',
-      priority: 2
-    });
-    
-    // Test 2: Break Reminder
-    chrome.notifications.create('test-break', {
-      type: 'basic',
-      iconUrl: iconUrl,
-      title: '☕ Take a break!',
-      message: 'You\'ve been working hard for 45 minutes. Step away for 5 minutes to recharge your brain!',
-      buttons: [
-        { title: 'Take Break' },
-        { title: 'Keep Working' }
-      ],
-      priority: 2
-    });
-    
-    // Test 3: Deadline Warning (24h)
-    chrome.notifications.create('test-deadline-24h', {
-      type: 'basic',
-      iconUrl: iconUrl,
-      title: '📅 Don\'t forget!',
-      message: 'Your Essay Assignment is due tomorrow. Make sure you\'re on track!',
-      priority: 2
-    });
-    
-    // Test 4: Deadline Warning (1h)
-    chrome.notifications.create('test-deadline-1h', {
-      type: 'basic',
-      iconUrl: iconUrl,
-      title: '⏰ One hour left!',
-      message: 'Math Exam is due in 1 hour. Time to wrap up and submit!',
-      priority: 2
-    });
-    
-    // Test 5: Deadline Imminent (15m)
-    chrome.notifications.create('test-deadline-15m', {
-      type: 'basic',
-      iconUrl: iconUrl,
-      title: '🚨 Final warning!',
-      message: 'Project Submission is due in 15 minutes! Submit now!',
-      priority: 2
-    });
-    
-    // Test 6: Task Nudge
-    chrome.notifications.create('test-nudge', {
-      type: 'basic',
-      iconUrl: iconUrl,
-      title: '💡 Quick tip!',
-      message: 'You just watched a lecture video. Take 2 minutes to write down the key points while they\'re fresh!',
-      priority: 2
-    });
-    
-  } catch (error) {
-    console.error('Error testing notifications:', error);
-    alert('Error: ' + error.message);
-  }
-};
-
 const init = async () => {
   loadTheme();
   loadTasks();
@@ -800,9 +724,6 @@ elements.typeExam.addEventListener("click", () => {
 elements.typeEvent.addEventListener("click", () => {
   setTaskType("event");
 });
-
-// Test notifications button
-elements.testNotificationsBtn.addEventListener("click", testAllNotifications);
 
 // Notification settings event listeners
 elements.enableNotifications.addEventListener("change", saveNotificationSettings);

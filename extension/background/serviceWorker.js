@@ -84,15 +84,6 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     focusStartTime = null;
     sendResponse({ ok: true });
   }
-  if (message?.type === "testNotification") {
-    console.log('Background: Creating test notification...');
-    showNotification(
-      'bg-test-' + Date.now(),
-      '🔔 Background Test',
-      'This notification is from the background service worker!'
-    );
-    sendResponse({ ok: true });
-  }
   return false;
 });
 
