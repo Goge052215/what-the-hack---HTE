@@ -8,13 +8,73 @@
   </head>
   <body>
     <main class="layout">
-      <h1>Focus Tutor Dashboard</h1>
-      <p id="summary">Loading...</p>
+      <header class="dashboard-header">
+        <h1>Focus Tutor Dashboard</h1>
+        <p id="summary">Loading...</p>
+      </header>
+
       <section class="card">
-        <h2>Tab Focus Analysis</h2>
-        <p id="analysisStatus">Waiting for analysis...</p>
-        <p id="analysisScore">Focus score: --</p>
-        <p id="analysisMeta">Tabs analyzed: --</p>
+        <h2>Active Tasks</h2>
+        <div class="task-input-group">
+          <input id="newTaskInput" type="text" placeholder="Add a new task..." />
+          <button id="addTaskBtn" class="btn-primary">Add Task</button>
+        </div>
+        <div id="tasksContainer">
+          <p id="tasksStatus">No tasks yet. Add one above!</p>
+          <ul id="tasksList" class="tasks-list"></ul>
+        </div>
+      </section>
+
+      <section class="card">
+        <h2>Focus Analysis</h2>
+        <div class="focus-score-display">
+          <div class="score-circle">
+            <span id="focusScoreValue">--</span>
+          </div>
+          <div class="score-details">
+            <p id="analysisStatus">Waiting for analysis...</p>
+            <p id="analysisMeta">Tabs analyzed: --</p>
+          </div>
+        </div>
+        <div class="progress-bar-container">
+          <div id="focusProgressBar" class="progress-bar" style="width: 0%"></div>
+        </div>
+      </section>
+
+      <section class="card">
+        <h2>Productivity Insights</h2>
+        <div class="insights-grid">
+          <div class="insight-item">
+            <span class="insight-label">Tasks Completed</span>
+            <span id="tasksCompleted" class="insight-value">0</span>
+          </div>
+          <div class="insight-item">
+            <span class="insight-label">Focus Time</span>
+            <span id="focusTime" class="insight-value">0h</span>
+          </div>
+          <div class="insight-item">
+            <span class="insight-label">Break Time</span>
+            <span id="breakTime" class="insight-value">0h</span>
+          </div>
+          <div class="insight-item">
+            <span class="insight-label">Productivity Score</span>
+            <span id="productivityScore" class="insight-value">--</span>
+          </div>
+        </div>
+      </section>
+
+      <section class="card">
+        <h2>Habit Patterns</h2>
+        <p class="placeholder-text">Habit visualization will appear here once you've used Focus Tutor for a few days.</p>
+        <div id="habitChart" class="habit-chart-placeholder">
+          <div class="chart-bar" style="height: 30%"></div>
+          <div class="chart-bar" style="height: 50%"></div>
+          <div class="chart-bar" style="height: 70%"></div>
+          <div class="chart-bar" style="height: 45%"></div>
+          <div class="chart-bar" style="height: 85%"></div>
+          <div class="chart-bar" style="height: 60%"></div>
+          <div class="chart-bar" style="height: 75%"></div>
+        </div>
       </section>
     </main>
     <script type="module" src="dashboard.js"></script>

@@ -1,17 +1,132 @@
 import { apiRequest } from "../ui/api/client.js";
 
-const summary = document.getElementById("summary");
-const analysisStatus = document.getElementById("analysisStatus");
-const analysisScore = document.getElementById("analysisScore");
-const analysisMeta = document.getElementById("analysisMeta");
+const elements = {
+  summary: document.getElementById("summary"),
+  newTaskInput: document.getElementById("newTaskInput"),
+  addTaskBtn: document.getElementById("addTaskBtn"),
+  tasksStatus: document.getElementById("tasksStatus"),
+  tasksList: document.getElementById("tasksList"),
+  focusScoreValue: document.getElementById("focusScoreValue"),
+  analysisStatus: document.getElementById("analysisStatus"),
+  analysisMeta: document.getElementById("analysisMeta"),
+  focusProgressBar: document.getElementById("focusProgressBar"),
+  tasksCompleted: document.getElementById("tasksCompleted"),
+  focusTime: document.getElementById("focusTime"),
+  breakTime: document.getElementById("breakTime"),
+  productivityScore: document.getElementById("productivityScore"),
+};
+
+let tasks = [];
 
 const loadTasks = async () => {
-  const tasks = await apiRequest("/api/tasks");
-  if (tasks.ok) {
-    summary.textContent = `Tasks tracked: ${(tasks.data || []).length}`;
+  const response = await apiRequest("/api/tasks");
+  if (response.ok) {
+    tasks = response.data || [];
+    elements.summary.textContent = `Tasks tracked: ${tasks.length}`;
+    renderTasks();
+    updateInsights();
     return;
   }
-  summary.textContent = "Connect to the API to see insights.";
+  elements.summary.textContent = "Connect to the API to see insights.";
+  loadLocalTasks();
+};
+
+const loadLocalTasks = () => {
+  chrome.storage.local.get(["tasks"], (result) => {
+    tasks = result.tasks || [];
+    renderTasks();
+    updateInsights();
+  });
+};
+
+const saveLocalTasks = () => {
+  chrome.storage.local.set({ tasks });
+};
+
+const addTask = async () => {
+  const description = elements.newTaskInput.value.trim();
+  if (!description) return;
+
+  const newTask = {
+    id: Date.now().toString(),
+    description,
+    completed: false,
+    subtasks: [],
+    createdAt: new Date().toISOString(),
+  };
+
+  const response = await apiRequest("/api/tasks", {
+    method: "POST",
+    body: { description },
+  });
+
+  if (response.ok && response.data) {
+    tasks.push({ ...newTask, subtasks: response.data.subtasks || [] });
+  } else {
+    tasks.push(newTask);
+  }
+
+  saveLocalTasks();
+  renderTasks();
+  updateInsights();
+  elements.newTaskInput.value = "";
+};
+
+const toggleTask = (taskId) => {
+  const task = tasks.find((t) => t.id === taskId);
+  if (task) {
+    task.completed = !task.completed;
+    saveLocalTasks();
+    renderTasks();
+    updateInsights();
+  }
+};
+
+const renderTasks = () => {
+  if (tasks.length === 0) {
+    elements.tasksStatus.style.display = "block";
+    elements.tasksList.innerHTML = "";
+    return;
+  }
+
+  elements.tasksStatus.style.display = "none";
+  elements.tasksList.innerHTML = tasks
+    .map(
+      (task) => `
+      <li class="task-item">
+        <input 
+          type="checkbox" 
+          ${task.completed ? "checked" : ""}
+          data-task-id="${task.id}"
+        />
+        <div class="task-item-content">
+          <p class="task-title" style="${task.completed ? "text-decoration: line-through; opacity: 0.6;" : ""}">
+            ${task.description}
+          </p>
+          <p class="task-meta">
+            ${task.subtasks?.length ? `${task.subtasks.length} subtasks` : "No subtasks"}
+          </p>
+        </div>
+        ${task.subtasks?.length ? `<span class="task-progress">${Math.round((task.subtasks.filter((s) => s.completed).length / task.subtasks.length) * 100)}%</span>` : ""}
+      </li>
+    `
+    )
+    .join("");
+
+  document.querySelectorAll('.task-item input[type="checkbox"]').forEach((checkbox) => {
+    checkbox.addEventListener("change", (e) => {
+      toggleTask(e.target.dataset.taskId);
+    });
+  });
+};
+
+const updateInsights = () => {
+  const completed = tasks.filter((t) => t.completed).length;
+  elements.tasksCompleted.textContent = completed;
+  
+  const totalTasks = tasks.length;
+  const productivity = totalTasks > 0 ? Math.round((completed / totalTasks) * 100) : 0;
+  elements.productivityScore.textContent = `${productivity}%`;
 };
 
 const buildTabContext = async () => {
@@ -23,27 +138,40 @@ const buildTabContext = async () => {
   return { context: entries.join(" | "), count: entries.length };
 };
 
+const scoreContext = (context) => {
+  const lower = context.toLowerCase();
+  const focusWords = ["task", "study", "build", "learn", "work", "code", "research"];
+  const distractions = ["youtube", "netflix", "gaming", "social", "twitter", "facebook", "instagram"];
+  const focusScore = focusWords.some((word) => lower.includes(word)) ? 0.7 : 0.4;
+  const distractionPenalty = distractions.some((word) => lower.includes(word)) ? 0.3 : 0;
+  return Math.max(0, Math.min(1, focusScore - distractionPenalty));
+};
+
 const analyzeTabs = async () => {
   const { context, count } = await buildTabContext();
   if (!context) {
-    analysisStatus.textContent = "No tabs to analyze";
-    analysisScore.textContent = "Focus score: --";
-    analysisMeta.textContent = "Tabs analyzed: 0";
+    elements.analysisStatus.textContent = "No tabs to analyze";
+    elements.focusScoreValue.textContent = "--";
+    elements.analysisMeta.textContent = "Tabs analyzed: 0";
+    elements.focusProgressBar.style.width = "0%";
     return;
   }
-  analysisStatus.textContent = "Analyzing...";
+  
+  elements.analysisStatus.textContent = "Analyzing...";
   const response = await apiRequest("/api/analyze", { method: "POST", body: { context } });
+  
+  let score;
   if (!response.ok) {
-    analysisStatus.textContent = "Analyze failed";
-    analysisScore.textContent = "Focus score: --";
-    analysisMeta.textContent = `Tabs analyzed: ${count}`;
-    return;
+    score = scoreContext(context);
+    elements.analysisStatus.textContent = "Local analysis";
+  } else {
+    score = response.data?.score ?? scoreContext(context);
+    elements.analysisStatus.textContent = "Analysis complete";
   }
-  const score = response.data?.score;
-  analysisStatus.textContent = "Analysis complete";
-  analysisScore.textContent =
-    typeof score === "number" ? `Focus score: ${score.toFixed(2)}` : "Focus score: --";
-  analysisMeta.textContent = `Tabs analyzed: ${count}`;
+  
+  elements.focusScoreValue.textContent = typeof score === "number" ? score.toFixed(2) : "--";
+  elements.analysisMeta.textContent = `Tabs analyzed: ${count}`;
+  elements.focusProgressBar.style.width = `${(score * 100).toFixed(0)}%`;
 };
 
 const init = async () => {
@@ -51,5 +179,12 @@ const init = async () => {
   await analyzeTabs();
   setInterval(analyzeTabs, 30000);
 };
+
+elements.addTaskBtn.addEventListener("click", addTask);
+elements.newTaskInput.addEventListener("keypress", (e) => {
+  if (e.key === "Enter") {
+    addTask();
+  }
+});
 
 init();

@@ -7,25 +7,226 @@ body {
 
 .layout {
   padding: 24px;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.dashboard-header {
+  margin-bottom: 24px;
 }
 
 h1 {
   margin: 0 0 8px;
+  font-size: 28px;
+  font-weight: 700;
 }
 
 p {
   color: #94a3b8;
+  margin: 0;
 }
 
 .card {
   margin-top: 16px;
-  padding: 16px;
+  padding: 20px;
   border-radius: 12px;
   background: #0f172a;
   border: 1px solid #1e293b;
 }
 
 .card h2 {
-  margin: 0 0 8px;
-  font-size: 16px;
+  margin: 0 0 16px;
+  font-size: 18px;
+  font-weight: 600;
+  color: #38bdf8;
+}
+
+.task-input-group {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.task-input-group input {
+  flex: 1;
+  padding: 10px 12px;
+  border-radius: 8px;
+  border: 1px solid #334155;
+  background: #111827;
+  color: #e2e8f0;
+  font-size: 14px;
+}
+
+.btn-primary {
+  padding: 10px 20px;
+  border: none;
+  border-radius: 8px;
+  background: #38bdf8;
+  color: #0f172a;
+  font-weight: 600;
+  cursor: pointer;
+  font-size: 14px;
+  transition: background 0.2s;
+}
+
+.btn-primary:hover {
+  background: #0ea5e9;
+}
+
+#tasksStatus {
+  color: #64748b;
+  font-size: 14px;
+  text-align: center;
+  padding: 20px;
+}
+
+.tasks-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: grid;
+  gap: 8px;
+}
+
+.task-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px;
+  border-radius: 8px;
+  background: #1e293b;
+  border: 1px solid #334155;
+  transition: border-color 0.2s;
+}
+
+.task-item:hover {
+  border-color: #38bdf8;
+}
+
+.task-item input[type="checkbox"] {
+  width: 18px;
+  height: 18px;
+  cursor: pointer;
+  accent-color: #38bdf8;
+}
+
+.task-item-content {
+  flex: 1;
+}
+
+.task-title {
+  font-size: 14px;
+  color: #e2e8f0;
+  margin: 0 0 4px;
+}
+
+.task-meta {
+  font-size: 12px;
+  color: #64748b;
+}
+
+.task-progress {
+  font-size: 12px;
+  color: #38bdf8;
+  font-weight: 600;
+}
+
+.focus-score-display {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  margin-bottom: 16px;
+}
+
+.score-circle {
+  width: 80px;
+  height: 80px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #38bdf8 0%, #0ea5e9 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 24px;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.score-details {
+  flex: 1;
+}
+
+.score-details p {
+  margin: 4px 0;
+  font-size: 14px;
+}
+
+.progress-bar-container {
+  width: 100%;
+  height: 8px;
+  background: #1e293b;
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.progress-bar {
+  height: 100%;
+  background: linear-gradient(90deg, #38bdf8 0%, #0ea5e9 100%);
+  transition: width 0.3s ease;
+}
+
+.insights-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 16px;
+}
+
+.insight-item {
+  padding: 16px;
+  border-radius: 8px;
+  background: #1e293b;
+  text-align: center;
+}
+
+.insight-label {
+  display: block;
+  font-size: 12px;
+  color: #94a3b8;
+  margin-bottom: 8px;
+}
+
+.insight-value {
+  display: block;
+  font-size: 24px;
+  font-weight: 700;
+  color: #38bdf8;
+}
+
+.placeholder-text {
+  color: #64748b;
+  font-size: 14px;
+  margin-bottom: 16px;
+}
+
+.habit-chart-placeholder {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-around;
+  height: 150px;
+  gap: 8px;
+  padding: 16px;
+  background: #1e293b;
+  border-radius: 8px;
+}
+
+.chart-bar {
+  flex: 1;
+  background: linear-gradient(180deg, #38bdf8 0%, #0ea5e9 100%);
+  border-radius: 4px 4px 0 0;
+  min-height: 20px;
+  opacity: 0.7;
+  transition: opacity 0.2s;
+}
+
+.chart-bar:hover {
+  opacity: 1;
 }
