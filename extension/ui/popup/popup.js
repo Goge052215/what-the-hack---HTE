@@ -31,6 +31,12 @@ const elements = {
   darkThemeBtn: document.getElementById("darkThemeBtn"),
   autoThemeBtn: document.getElementById("autoThemeBtn"),
   openDashboardBtn: document.getElementById("openDashboardBtn"),
+  enableNotifications: document.getElementById("enableNotifications"),
+  distractionAlerts: document.getElementById("distractionAlerts"),
+  breakReminders: document.getElementById("breakReminders"),
+  deadlineReminders: document.getElementById("deadlineReminders"),
+  taskNudges: document.getElementById("taskNudges"),
+  focusDuration: document.getElementById("focusDuration"),
   settingsBtn: document.getElementById("settingsBtn"),
   taskListBtn: document.getElementById("taskListBtn"),
   taskCount: document.getElementById("taskCount"),
@@ -42,6 +48,14 @@ const elements = {
 let tasks = [];
 let currentTaskIndex = 0;
 let selectedTaskType = "assignment";
+let notificationSettings = {
+  enabled: true,
+  distractionAlerts: true,
+  breakReminders: true,
+  deadlineReminders: true,
+  taskNudges: true,
+  focusDuration: 45
+};
 
 const loadTheme = () => {
   chrome.storage.local.get(["theme"], (result) => {
@@ -285,9 +299,6 @@ const updateCurrentTask = () => {
   const status = activeTask.status || "not-started";
   updateProgressBar(status);
   updateStatusButtons(status);
-  
-  // Trigger progress detection
-  detectTaskProgress();
 };
 
 const updateProgressBar = (status) => {
@@ -588,9 +599,44 @@ const analyzeTabs = async () => {
   }
 };
 
+const loadNotificationSettings = () => {
+  chrome.storage.local.get(["notificationSettings"], (result) => {
+    if (result.notificationSettings) {
+      notificationSettings = result.notificationSettings;
+    }
+    
+    // Update UI
+    elements.enableNotifications.checked = notificationSettings.enabled;
+    elements.distractionAlerts.checked = notificationSettings.distractionAlerts;
+    elements.breakReminders.checked = notificationSettings.breakReminders;
+    elements.deadlineReminders.checked = notificationSettings.deadlineReminders;
+    elements.taskNudges.checked = notificationSettings.taskNudges;
+    elements.focusDuration.value = notificationSettings.focusDuration;
+  });
+};
+
+const saveNotificationSettings = () => {
+  notificationSettings = {
+    enabled: elements.enableNotifications.checked,
+    distractionAlerts: elements.distractionAlerts.checked,
+    breakReminders: elements.breakReminders.checked,
+    deadlineReminders: elements.deadlineReminders.checked,
+    taskNudges: elements.taskNudges.checked,
+    focusDuration: parseInt(elements.focusDuration.value) || 45
+  };
+  
+  chrome.storage.local.set({ notificationSettings });
+  
+  // Request notification permission if enabled
+  if (notificationSettings.enabled) {
+    chrome.permissions.request({ permissions: ['notifications'] });
+  }
+};
+
 const init = async () => {
   loadTheme();
   loadTasks();
+  loadNotificationSettings();
   updateCurrentTask();
   const baseUrl = await ensureApiBaseUrl();
   elements.apiBaseUrl.value = baseUrl;
@@ -678,6 +724,14 @@ elements.typeExam.addEventListener("click", () => {
 elements.typeEvent.addEventListener("click", () => {
   setTaskType("event");
 });
+
+// Notification settings event listeners
+elements.enableNotifications.addEventListener("change", saveNotificationSettings);
+elements.distractionAlerts.addEventListener("change", saveNotificationSettings);
+elements.breakReminders.addEventListener("change", saveNotificationSettings);
+elements.deadlineReminders.addEventListener("change", saveNotificationSettings);
+elements.taskNudges.addEventListener("change", saveNotificationSettings);
+elements.focusDuration.addEventListener("change", saveNotificationSettings);
 
 /*
 elements.login.addEventListener("click", async () => {});

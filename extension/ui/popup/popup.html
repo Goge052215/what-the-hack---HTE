@@ -95,6 +95,41 @@
         
         <div class="divider"></div>
         
+        <h3>Notifications</h3>
+        <div class="notification-settings">
+          <label class="checkbox-label">
+            <input id="enableNotifications" type="checkbox" checked />
+            <span>🔔 Enable Notifications</span>
+          </label>
+          
+          <label class="checkbox-label">
+            <input id="distractionAlerts" type="checkbox" checked />
+            <span>🤔 Distraction Alerts</span>
+          </label>
+          
+          <label class="checkbox-label">
+            <input id="breakReminders" type="checkbox" checked />
+            <span>⏰ Break Reminders</span>
+          </label>
+          
+          <label class="checkbox-label">
+            <input id="deadlineReminders" type="checkbox" checked />
+            <span>⚠️ Deadline Reminders</span>
+          </label>
+          
+          <label class="checkbox-label">
+            <input id="taskNudges" type="checkbox" checked />
+            <span>💡 Task Nudges</span>
+          </label>
+          
+          <div class="setting-row">
+            <label for="focusDuration">Focus Duration (minutes)</label>
+            <input id="focusDuration" type="number" min="15" max="120" value="45" />
+          </div>
+        </div>
+        
+        <div class="divider"></div>
+        
         <h3>Tab Analysis</h3>
         <p id="analysisStatus">Waiting for analysis...</p>
         <p id="analysisScore">Focus score: --</p>
