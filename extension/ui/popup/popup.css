@@ -314,8 +314,15 @@ body {
   border-color: var(--accent);
 }
 
-#taskDeadline {
+.deadline-inputs {
+  display: flex;
+  gap: 8px;
   margin-bottom: 12px;
+}
+
+#taskDeadlineDate,
+#taskDeadlineTime {
+  flex: 1;
   padding: 10px 12px;
   border-radius: 8px;
   border: 1px solid var(--border);
@@ -328,31 +335,36 @@ body {
   cursor: pointer;
 }
 
-#taskDeadline:hover {
+#taskDeadlineDate:hover,
+#taskDeadlineTime:hover {
   border-color: var(--accent);
 }
 
-#taskDeadline:focus {
+#taskDeadlineDate:focus,
+#taskDeadlineTime:focus {
   outline: none;
   border-color: var(--accent);
   box-shadow: 0 0 0 3px var(--shadow);
 }
 
-/* Style the calendar icon and dropdown */
-#taskDeadline::-webkit-calendar-picker-indicator {
+/* Style the calendar and clock icons */
+#taskDeadlineDate::-webkit-calendar-picker-indicator,
+#taskDeadlineTime::-webkit-calendar-picker-indicator {
   cursor: pointer;
   border-radius: 4px;
   padding: 4px;
   transition: all 0.2s ease;
-  filter: var(--calendar-icon-filter, invert(0.5));
+  filter: invert(0.5);
 }
 
-#taskDeadline::-webkit-calendar-picker-indicator:hover {
+#taskDeadlineDate::-webkit-calendar-picker-indicator:hover,
+#taskDeadlineTime::-webkit-calendar-picker-indicator:hover {
   background: var(--bg-tertiary);
 }
 
-/* Dark theme calendar icon */
-.dark-theme #taskDeadline::-webkit-calendar-picker-indicator {
+/* Dark theme icons */
+.dark-theme #taskDeadlineDate::-webkit-calendar-picker-indicator,
+.dark-theme #taskDeadlineTime::-webkit-calendar-picker-indicator {
   filter: invert(0.8);
 }
 

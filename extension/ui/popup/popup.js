@@ -4,7 +4,8 @@ const elements = {
   apiBaseUrl: document.getElementById("apiBaseUrl"),
   saveApiBaseUrl: document.getElementById("saveApiBaseUrl"),
   taskInput: document.getElementById("taskInput"),
-  taskDeadline: document.getElementById("taskDeadline"),
+  taskDeadlineDate: document.getElementById("taskDeadlineDate"),
+  taskDeadlineTime: document.getElementById("taskDeadlineTime"),
   addToCalendar: document.getElementById("addToCalendar"),
   typeAssignment: document.getElementById("typeAssignment"),
   typeExam: document.getElementById("typeExam"),
@@ -97,14 +98,22 @@ const addTask = async () => {
   const description = elements.taskInput.value.trim();
   if (!description) return;
 
-  const deadline = elements.taskDeadline.value;
+  const deadlineDate = elements.taskDeadlineDate.value;
+  const deadlineTime = elements.taskDeadlineTime.value;
   const addToCalendar = elements.addToCalendar.checked;
+  
+  // Combine date and time into ISO string
+  let deadline = null;
+  if (deadlineDate) {
+    const timeStr = deadlineTime || "23:59";
+    deadline = `${deadlineDate}T${timeStr}`;
+  }
 
   const newTask = {
     id: Date.now().toString(),
     description,
     type: selectedTaskType,
-    deadline: deadline || null,
+    deadline: deadline,
     status: "not-started",
     completed: false,
     createdAt: new Date().toISOString(),
@@ -117,12 +126,18 @@ const addTask = async () => {
   
   // Add to Google Calendar if checked
   if (addToCalendar && deadline) {
-    await addToGoogleCalendar(newTask);
+    const success = await addToGoogleCalendar(newTask);
+    if (success) {
+      alert("✅ Task added to Google Calendar!");
+    } else {
+      alert("⚠️ Could not add to Google Calendar. Please check permissions.");
+    }
   }
   
   // Reset form
   elements.taskInput.value = "";
-  elements.taskDeadline.value = "";
+  elements.taskDeadlineDate.value = "";
+  elements.taskDeadlineTime.value = "";
   elements.addToCalendar.checked = false;
   elements.addTaskPanel.style.display = "none";
   
@@ -146,6 +161,7 @@ const addToGoogleCalendar = async (task) => {
     const token = await new Promise((resolve, reject) => {
       chrome.identity.getAuthToken({ interactive: true }, (token) => {
         if (chrome.runtime.lastError) {
+          console.error("OAuth error:", chrome.runtime.lastError);
           reject(chrome.runtime.lastError);
         } else {
           resolve(token);
@@ -153,11 +169,17 @@ const addToGoogleCalendar = async (task) => {
       });
     });
 
+    if (!token) {
+      console.error("No token received");
+      return false;
+    }
+
     // Prepare event data
     const deadline = new Date(task.deadline);
+    const typeEmoji = task.type === "assignment" ? "📝" : task.type === "exam" ? "�" : "📅";
     const eventData = {
-      summary: `${task.type === "assignment" ? "📝" : task.type === "exam" ? "📝" : "📅"} ${task.description}`,
-      description: `Task Type: ${task.type}\nCreated from Focus Tutor`,
+      summary: `${typeEmoji} ${task.description}`,
+      description: `Task Type: ${task.type}\nCreated from Focus Tutor Extension`,
       start: {
         dateTime: deadline.toISOString(),
         timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
@@ -175,6 +197,8 @@ const addToGoogleCalendar = async (task) => {
       },
     };
 
+    console.log("Creating calendar event:", eventData);
+
     // Create calendar event
     const response = await fetch("https://www.googleapis.com/calendar/v3/calendars/primary/events", {
       method: "POST",
@@ -186,12 +210,17 @@ const addToGoogleCalendar = async (task) => {
     });
 
     if (response.ok) {
-      console.log("Event added to Google Calendar successfully");
+      const result = await response.json();
+      console.log("Event added to Google Calendar successfully:", result);
+      return true;
     } else {
-      console.error("Failed to add event to Google Calendar");
+      const error = await response.text();
+      console.error("Failed to add event to Google Calendar:", error);
+      return false;
     }
   } catch (error) {
     console.error("Error adding to Google Calendar:", error);
+    return false;
   }
 };
 

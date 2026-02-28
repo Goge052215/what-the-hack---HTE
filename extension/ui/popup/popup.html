@@ -55,8 +55,11 @@
           <button id="typeEvent" class="task-type-btn" data-type="event">📅 Event</button>
         </div>
         
-        <label for="taskDeadline">Deadline</label>
-        <input id="taskDeadline" type="datetime-local" />
+        <label for="taskDeadlineDate">Deadline</label>
+        <div class="deadline-inputs">
+          <input id="taskDeadlineDate" type="date" placeholder="Select date" />
+          <input id="taskDeadlineTime" type="time" placeholder="Select time" />
+        </div>
         
         <div class="calendar-option">
           <label class="checkbox-label">
