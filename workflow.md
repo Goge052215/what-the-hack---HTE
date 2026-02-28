@@ -4,11 +4,11 @@ Your concept stands out as a unique “AI Adaptive Focus Tutor” extension: use
 
 **Closest existing repos (all free to fork/study):**
 
-- **Smart Tab Manager** — AI tab categorization via content + behavioral tracking, context-aware (work hours), learns from user corrections, productivity nudges.
-- **No-Hooting-Around** (DeltaHacks XI winner) — Real-time AI screenshot analysis of active tab vs. user goal, auto-redirects distractions.
-- **Super Productivity** + its official Chrome extension — Full task planner with sub-tasks, Pomodoro, break reminders, idle detection.
-- **FocusGuard AI** — OpenAI-based page content analysis that closes off-topic tabs.
-- **TabsTracker** — Time tracking + AI productivity categorization with visualizations.
+- **Smart Tab Manager** — AI tab categorization via content + behavioral tracking, context-aware (work hours), learns from user corrections, productivity nudges. [repo link](https://github.com/mnusrat786/smart-tab-manager)
+- **No-Hooting-Around** (DeltaHacks XI winner) — Real-time AI screenshot analysis of active tab vs. user goal, auto-redirects distractions. [repo link](https://github.com/RohanT766/No-Hooting-Around)
+- **Super Productivity** + its official Chrome extension — Full task planner with sub-tasks, Pomodoro, break reminders, idle detection. [repo link](https://github.com/super-productivity/super-productivity)
+- **FocusGuard AI** — OpenAI-based page content analysis that closes off-topic tabs. [repo link](https://github.com/erolDemirhan/focus-guard-ai)
+- **TabsTracker** — Time tracking + AI productivity categorization with visualizations. [repo link](https://github.com/Himank-J/TabsTracker)
 
 None combine task splitting + deep habit-learned scheduling + MiniMax-level multimodal AI, so your version would be original.
 
