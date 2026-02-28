@@ -1,4 +1,4 @@
-# 🐾 FocusPet — AI Adaptive Learning Companion
+2# 🐾 FocusPet — AI Adaptive Learning Companion
 
 FocusPet is an AI-powered learning companion designed to help students improve focus, reduce procrastination, and build sustainable study habits through adaptive behavior modeling and intelligent task management.
 

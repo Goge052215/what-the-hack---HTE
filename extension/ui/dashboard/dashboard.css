@@ -18,22 +18,15 @@
 }
 
 body.dark-theme {
-  --bg-primary: #2a2a2e;
-  --bg-secondary: #35353a;
-  --bg-tertiary: #404046;
   --text-primary: #d4d4d8;
   --text-secondary: #a8a8b0;
   --text-tertiary: #7a7a82;
-  --accent: #9ca8ba;
-  --accent-hover: #b4bfce;
   --border: #4a4a50;
   --shadow: rgba(0, 0, 0, 0.2);
   --input-bg: #35353a;
   --success: #8fa89c;
   --warning: #a89c8f;
   --error: #a88f8f;
-  --study-color: #5a7ab0;
-  --entertainment-color: #c07f7f;
 }
 
 * {
@@ -109,6 +102,10 @@ body {
   display: grid;
   gap: 6px;
   z-index: 20;
+}
+
+.palette-menu[hidden] {
+  display: none;
 }
 
 .palette-swatch {
@@ -617,4 +614,121 @@ p {
   background: linear-gradient(90deg, var(--error), var(--warning), var(--success));
   width: 100%;
   transition: width 0.5s ease;
+}
+
+/* Focus Timer Sections */
+.timer-summary {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+  margin-bottom: 24px;
+}
+
+.timer-stat {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 16px;
+  background: var(--bg-secondary);
+  border-radius: 10px;
+  border: 1px solid var(--border);
+}
+
+.stat-label {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.stat-value {
+  font-size: 24px;
+  font-weight: 700;
+  color: var(--accent);
+}
+
+.section-subtitle {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin: 20px 0 12px;
+}
+
+.session-history {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: 300px;
+  overflow-y: auto;
+}
+
+.session-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 14px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  transition: all 0.2s ease;
+}
+
+.session-item:hover {
+  border-color: var(--accent);
+  transform: translateX(2px);
+}
+
+.session-info {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.session-type {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.session-type.focus {
+  color: var(--accent);
+}
+
+.session-type.rest {
+  color: var(--success);
+}
+
+.session-time {
+  font-size: 11px;
+  color: var(--text-secondary);
+}
+
+.session-duration {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-primary);
+  font-variant-numeric: tabular-nums;
+}
+
+.ai-insights {
+  margin-top: 24px;
+  padding: 16px;
+  background: linear-gradient(135deg, var(--bg-secondary), var(--bg-tertiary));
+  border: 1px solid var(--accent);
+  border-radius: 10px;
+}
+
+.ai-insight-text {
+  font-size: 13px;
+  line-height: 1.6;
+  color: var(--text-primary);
+  margin: 8px 0 0;
+}
+
+.placeholder-text {
+  font-size: 13px;
+  color: var(--text-tertiary);
+  text-align: center;
+  padding: 20px;
 }

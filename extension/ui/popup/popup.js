@@ -6,6 +6,15 @@ const elements = {
   taskInput: document.getElementById("taskInput"),
   taskDeadlineDate: document.getElementById("taskDeadlineDate"),
   taskDeadlineTime: document.getElementById("taskDeadlineTime"),
+  datePickerDropdown: document.getElementById("datePickerDropdown"),
+  calendarDays: document.getElementById("calendarDays"),
+  currentMonth: document.getElementById("currentMonth"),
+  prevMonth: document.getElementById("prevMonth"),
+  nextMonth: document.getElementById("nextMonth"),
+  timePickerDropdown: document.getElementById("timePickerDropdown"),
+  hourScroll: document.getElementById("hourScroll"),
+  minuteScroll: document.getElementById("minuteScroll"),
+  periodScroll: document.getElementById("periodScroll"),
   // addToCalendar: document.getElementById("addToCalendar"), // Disabled until Chrome Web Store publish
   typeAssignment: document.getElementById("typeAssignment"),
   typeExam: document.getElementById("typeExam"),
@@ -43,11 +52,30 @@ const elements = {
   settingsPanel: document.getElementById("settingsPanel"),
   taskListPanel: document.getElementById("taskListPanel"),
   addTaskPanel: document.getElementById("addTaskPanel"),
+  timerMode: document.getElementById("timerMode"),
+  timerTime: document.getElementById("timerTime"),
+  timerStartBtn: document.getElementById("timerStartBtn"),
+  timerPauseBtn: document.getElementById("timerPauseBtn"),
+  timerResetBtn: document.getElementById("timerResetBtn"),
+  pomodoroModeBtn: document.getElementById("pomodoroModeBtn"),
+  customModeBtn: document.getElementById("customModeBtn"),
+  pomodoroSettings: document.getElementById("pomodoroSettings"),
+  customSettings: document.getElementById("customSettings"),
+  pomodoroFocus: document.getElementById("pomodoroFocus"),
+  pomodoroBreak: document.getElementById("pomodoroBreak"),
+  pomodoroLongBreak: document.getElementById("pomodoroLongBreak"),
+  customFocus: document.getElementById("customFocus"),
+  customBreak: document.getElementById("customBreak"),
+  customColorBtn: document.getElementById("customColorBtn"),
+  colorPickerPanel: document.getElementById("colorPickerPanel"),
+  colorPicker: document.getElementById("colorPicker"),
+  applyCustomColor: document.getElementById("applyCustomColor"),
 };
 
 let tasks = [];
 let currentTaskIndex = 0;
 let selectedTaskType = "assignment";
+let currentPaletteId = "slate";
 let notificationSettings = {
   enabled: true,
   distractionAlerts: true,
@@ -55,6 +83,356 @@ let notificationSettings = {
   deadlineReminders: true,
   taskNudges: true,
   focusDuration: 45
+};
+
+let timerState = {
+  mode: "pomodoro", // "pomodoro" or "custom"
+  phase: "focus", // "focus" or "rest"
+  isRunning: false,
+  timeRemaining: 25 * 60, // seconds
+  interval: null,
+  pomodoroCount: 0,
+  sessionHistory: []
+};
+
+let timerConfig = {
+  pomodoro: {
+    focus: 25,
+    shortBreak: 5,
+    longBreak: 15
+  },
+  custom: {
+    focus: 45,
+    break: 10
+  }
+};
+
+const palettes = {
+  slate: {
+    light: { accent: "#a8b5c8", accentHover: "#8fa3bc", bgPrimary: "#fafafa", bgSecondary: "#f5f5f5", bgTertiary: "#ececec" },
+    dark: { accent: "#9ca8ba", accentHover: "#b4bfce", bgPrimary: "#2a2a2e", bgSecondary: "#35353a", bgTertiary: "#404046" },
+  },
+  ocean: {
+    light: { accent: "#4f8bd6", accentHover: "#3b76c0", bgPrimary: "#f0f7fc", bgSecondary: "#e6f2fa", bgTertiary: "#d9ebf7" },
+    dark: { accent: "#6ea6e3", accentHover: "#88b6ea", bgPrimary: "#1a2633", bgSecondary: "#243140", bgTertiary: "#2e3d4d" },
+  },
+  lavender: {
+    light: { accent: "#9b7ad9", accentHover: "#8462c3", bgPrimary: "#f8f5fc", bgSecondary: "#f2ecfa", bgTertiary: "#e9dff5" },
+    dark: { accent: "#b79cf0", accentHover: "#c9b1f5", bgPrimary: "#2a2533", bgSecondary: "#352f40", bgTertiary: "#403a4d" },
+  },
+  mint: {
+    light: { accent: "#3aa97a", accentHover: "#2e9468", bgPrimary: "#f3faf7", bgSecondary: "#e8f5ef", bgTertiary: "#daf0e5" },
+    dark: { accent: "#59c892", accentHover: "#73d6a6", bgPrimary: "#1f2e28", bgSecondary: "#293933", bgTertiary: "#33443e" },
+  },
+  sunset: {
+    light: { accent: "#e07b5f", accentHover: "#c9654d", bgPrimary: "#fcf6f4", bgSecondary: "#faf0ec", bgTertiary: "#f5e6e0" },
+    dark: { accent: "#f2a08c", accentHover: "#f6b1a1", bgPrimary: "#2e2623", bgSecondary: "#39312d", bgTertiary: "#443c38" },
+  },
+  custom: {
+    light: { accent: "#a8b5c8", accentHover: "#8fa3bc", bgPrimary: "#fafafa", bgSecondary: "#f5f5f5", bgTertiary: "#ececec" },
+    dark: { accent: "#9ca8ba", accentHover: "#b4bfce", bgPrimary: "#2a2a2e", bgSecondary: "#35353a", bgTertiary: "#404046" },
+  },
+};
+
+// Color manipulation functions
+const hexToRgb = (hex) => {
+  const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+  return result ? {
+    r: parseInt(result[1], 16),
+    g: parseInt(result[2], 16),
+    b: parseInt(result[3], 16)
+  } : null;
+};
+
+const rgbToHex = (r, g, b) => {
+  return "#" + [r, g, b].map(x => {
+    const hex = x.toString(16);
+    return hex.length === 1 ? "0" + hex : hex;
+  }).join('');
+};
+
+const darkenColor = (hex, percent) => {
+  const rgb = hexToRgb(hex);
+  if (!rgb) return hex;
+  
+  const factor = (100 - percent) / 100;
+  return rgbToHex(
+    Math.round(rgb.r * factor),
+    Math.round(rgb.g * factor),
+    Math.round(rgb.b * factor)
+  );
+};
+
+const lightenColor = (hex, percent) => {
+  const rgb = hexToRgb(hex);
+  if (!rgb) return hex;
+  
+  const factor = percent / 100;
+  return rgbToHex(
+    Math.min(255, Math.round(rgb.r + (255 - rgb.r) * factor)),
+    Math.min(255, Math.round(rgb.g + (255 - rgb.g) * factor)),
+    Math.min(255, Math.round(rgb.b + (255 - rgb.b) * factor))
+  );
+};
+
+const generateCustomPalette = (baseColor) => {
+  const accentHover = darkenColor(baseColor, 15);
+  
+  // Generate light theme backgrounds with subtle tint
+  const rgb = hexToRgb(baseColor);
+  const bgPrimaryLight = lightenColor(baseColor, 95);
+  const bgSecondaryLight = lightenColor(baseColor, 90);
+  const bgTertiaryLight = lightenColor(baseColor, 85);
+  
+  // Generate dark theme - darker versions of the base color
+  const bgPrimaryDark = darkenColor(baseColor, 85);
+  const bgSecondaryDark = darkenColor(baseColor, 80);
+  const bgTertiaryDark = darkenColor(baseColor, 75);
+  const accentDark = lightenColor(baseColor, 10);
+  const accentHoverDark = lightenColor(baseColor, 20);
+  
+  palettes.custom = {
+    light: {
+      accent: baseColor,
+      accentHover: accentHover,
+      bgPrimary: bgPrimaryLight,
+      bgSecondary: bgSecondaryLight,
+      bgTertiary: bgTertiaryLight
+    },
+    dark: {
+      accent: accentDark,
+      accentHover: accentHoverDark,
+      bgPrimary: bgPrimaryDark,
+      bgSecondary: bgSecondaryDark,
+      bgTertiary: bgTertiaryDark
+    }
+  };
+};
+
+const applyPalette = (paletteId) => {
+  const palette = palettes[paletteId] || palettes.slate;
+  const isDark = document.body.classList.contains("dark-theme");
+  const colors = isDark ? palette.dark : palette.light;
+  const root = document.documentElement;
+
+  root.style.setProperty("--accent", colors.accent);
+  root.style.setProperty("--accent-hover", colors.accentHover);
+  root.style.setProperty("--bg-primary", colors.bgPrimary);
+  root.style.setProperty("--bg-secondary", colors.bgSecondary);
+  root.style.setProperty("--bg-tertiary", colors.bgTertiary);
+};
+
+const setPalette = (paletteId) => {
+  currentPaletteId = paletteId;
+  applyPalette(paletteId);
+  chrome.storage.local.set({ palette: paletteId });
+  updatePaletteSelection();
+};
+
+const updatePaletteSelection = () => {
+  const paletteOptions = document.querySelectorAll(".palette-dot-btn");
+  paletteOptions.forEach((btn) => {
+    const id = btn.getAttribute("data-palette");
+    if (id === currentPaletteId) {
+      btn.classList.add("active");
+    } else {
+      btn.classList.remove("active");
+    }
+  });
+  
+  // Handle custom color button
+  if (currentPaletteId === "custom") {
+    elements.customColorBtn.classList.add("active");
+  } else {
+    elements.customColorBtn.classList.remove("active");
+  }
+};
+
+const loadPalette = () => {
+  chrome.storage.local.get(["palette", "customColor"], (result) => {
+    const paletteId = result.palette || "slate";
+    currentPaletteId = paletteId;
+    
+    // If custom palette, load the custom color
+    if (paletteId === "custom" && result.customColor) {
+      generateCustomPalette(result.customColor);
+      elements.customColorBtn.style.background = result.customColor;
+      elements.colorPicker.value = result.customColor;
+    }
+    
+    applyPalette(paletteId);
+    updatePaletteSelection();
+  });
+};
+
+// Timer Functions
+const formatTime = (seconds) => {
+  const mins = Math.floor(seconds / 60);
+  const secs = seconds % 60;
+  return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+};
+
+const updateTimerDisplay = () => {
+  elements.timerTime.textContent = formatTime(timerState.timeRemaining);
+  elements.timerMode.textContent = timerState.phase === "focus" ? "Focus" : "Rest";
+  elements.timerMode.className = `timer-mode ${timerState.phase}`;
+};
+
+const startTimer = () => {
+  if (timerState.isRunning) return;
+  
+  timerState.isRunning = true;
+  elements.timerStartBtn.style.display = "none";
+  elements.timerPauseBtn.style.display = "flex";
+  
+  const startTime = Date.now();
+  const startPhase = timerState.phase;
+  
+  timerState.interval = setInterval(() => {
+    timerState.timeRemaining--;
+    updateTimerDisplay();
+    
+    if (timerState.timeRemaining <= 0) {
+      completeTimerPhase(startTime, startPhase);
+    }
+  }, 1000);
+};
+
+const pauseTimer = () => {
+  if (!timerState.isRunning) return;
+  
+  timerState.isRunning = false;
+  elements.timerStartBtn.style.display = "flex";
+  elements.timerPauseBtn.style.display = "none";
+  
+  if (timerState.interval) {
+    clearInterval(timerState.interval);
+    timerState.interval = null;
+  }
+};
+
+const resetTimer = () => {
+  pauseTimer();
+  
+  const duration = timerState.mode === "pomodoro" 
+    ? timerConfig.pomodoro.focus 
+    : timerConfig.custom.focus;
+  
+  timerState.timeRemaining = duration * 60;
+  timerState.phase = "focus";
+  updateTimerDisplay();
+};
+
+const completeTimerPhase = (startTime, phase) => {
+  pauseTimer();
+  
+  // Save session to history
+  const session = {
+    mode: timerState.mode,
+    phase: phase,
+    startTime: new Date(startTime).toISOString(),
+    endTime: new Date().toISOString(),
+    duration: phase === "focus" 
+      ? (timerState.mode === "pomodoro" ? timerConfig.pomodoro.focus : timerConfig.custom.focus)
+      : (timerState.mode === "pomodoro" ? timerConfig.pomodoro.shortBreak : timerConfig.custom.break)
+  };
+  
+  timerState.sessionHistory.push(session);
+  saveTimerHistory();
+  
+  // Show notification
+  if (notificationSettings.enabled) {
+    chrome.notifications.create({
+      type: 'basic',
+      iconUrl: chrome.runtime.getURL('icon.png'),
+      title: phase === "focus" ? "Focus Session Complete!" : "Break Complete!",
+      message: phase === "focus" ? "Time for a break!" : "Ready to focus again?",
+      priority: 2
+    });
+  }
+  
+  // Switch phase
+  if (phase === "focus") {
+    timerState.phase = "rest";
+    timerState.pomodoroCount++;
+    
+    // Determine break duration
+    const isLongBreak = timerState.mode === "pomodoro" && timerState.pomodoroCount % 4 === 0;
+    const breakDuration = timerState.mode === "pomodoro"
+      ? (isLongBreak ? timerConfig.pomodoro.longBreak : timerConfig.pomodoro.shortBreak)
+      : timerConfig.custom.break;
+    
+    timerState.timeRemaining = breakDuration * 60;
+  } else {
+    timerState.phase = "focus";
+    const focusDuration = timerState.mode === "pomodoro" 
+      ? timerConfig.pomodoro.focus 
+      : timerConfig.custom.focus;
+    timerState.timeRemaining = focusDuration * 60;
+  }
+  
+  updateTimerDisplay();
+};
+
+const saveTimerHistory = () => {
+  chrome.storage.local.set({ 
+    timerHistory: timerState.sessionHistory.slice(-100) // Keep last 100 sessions
+  });
+};
+
+const loadTimerHistory = () => {
+  chrome.storage.local.get(["timerHistory"], (result) => {
+    if (result.timerHistory) {
+      timerState.sessionHistory = result.timerHistory;
+    }
+  });
+};
+
+const loadTimerConfig = () => {
+  chrome.storage.local.get(["timerConfig"], (result) => {
+    if (result.timerConfig) {
+      timerConfig = result.timerConfig;
+      
+      // Update input values
+      elements.pomodoroFocus.value = timerConfig.pomodoro.focus;
+      elements.pomodoroBreak.value = timerConfig.pomodoro.shortBreak;
+      elements.pomodoroLongBreak.value = timerConfig.pomodoro.longBreak;
+      elements.customFocus.value = timerConfig.custom.focus;
+      elements.customBreak.value = timerConfig.custom.break;
+    }
+    
+    resetTimer();
+  });
+};
+
+const saveTimerConfig = () => {
+  timerConfig.pomodoro.focus = parseInt(elements.pomodoroFocus.value) || 25;
+  timerConfig.pomodoro.shortBreak = parseInt(elements.pomodoroBreak.value) || 5;
+  timerConfig.pomodoro.longBreak = parseInt(elements.pomodoroLongBreak.value) || 15;
+  timerConfig.custom.focus = parseInt(elements.customFocus.value) || 45;
+  timerConfig.custom.break = parseInt(elements.customBreak.value) || 10;
+  
+  chrome.storage.local.set({ timerConfig });
+  resetTimer();
+};
+
+const setTimerMode = (mode) => {
+  timerState.mode = mode;
+  
+  elements.pomodoroModeBtn.classList.remove("active");
+  elements.customModeBtn.classList.remove("active");
+  
+  if (mode === "pomodoro") {
+    elements.pomodoroModeBtn.classList.add("active");
+    elements.pomodoroSettings.style.display = "flex";
+    elements.customSettings.style.display = "none";
+  } else {
+    elements.customModeBtn.classList.add("active");
+    elements.pomodoroSettings.style.display = "none";
+    elements.customSettings.style.display = "flex";
+  }
+  
+  resetTimer();
 };
 
 const loadTheme = () => {
@@ -66,8 +444,8 @@ const loadTheme = () => {
 
 const getAutoTheme = () => {
   const hour = new Date().getHours();
-  // Dark mode from 8pm (20:00) to 6am (6:00)
-  return (hour >= 20 || hour < 6) ? "dark" : "light";
+  // Dark mode from 6pm (18:00) to 6am (6:00)
+  return (hour >= 18 || hour < 6) ? "dark" : "light";
 };
 
 const applyTheme = (theme) => {
@@ -97,6 +475,9 @@ const applyTheme = (theme) => {
   } else if (theme === "auto") {
     elements.autoThemeBtn.classList.add("active");
   }
+  
+  // Reapply palette colors for the new theme
+  applyPalette(currentPaletteId);
 };
 
 const setTheme = (theme) => {
@@ -656,8 +1037,11 @@ const initAccordion = () => {
 
 const init = async () => {
   loadTheme();
+  loadPalette();
   loadTasks();
   loadNotificationSettings();
+  loadTimerConfig();
+  loadTimerHistory();
   initAccordion();
   updateCurrentTask();
   const baseUrl = await ensureApiBaseUrl();
@@ -754,6 +1138,245 @@ elements.breakReminders.addEventListener("change", saveNotificationSettings);
 elements.deadlineReminders.addEventListener("change", saveNotificationSettings);
 elements.taskNudges.addEventListener("change", saveNotificationSettings);
 elements.focusDuration.addEventListener("change", saveNotificationSettings);
+
+// Palette selection event listeners
+document.querySelectorAll(".palette-dot-btn").forEach((btn) => {
+  btn.addEventListener("click", () => {
+    const paletteId = btn.getAttribute("data-palette");
+    if (paletteId) {
+      setPalette(paletteId);
+    }
+  });
+});
+
+// Timer event listeners
+elements.timerStartBtn.addEventListener("click", startTimer);
+elements.timerPauseBtn.addEventListener("click", pauseTimer);
+elements.timerResetBtn.addEventListener("click", resetTimer);
+
+elements.pomodoroModeBtn.addEventListener("click", () => setTimerMode("pomodoro"));
+elements.customModeBtn.addEventListener("click", () => setTimerMode("custom"));
+
+// Timer config change listeners
+elements.pomodoroFocus.addEventListener("change", saveTimerConfig);
+elements.pomodoroBreak.addEventListener("change", saveTimerConfig);
+elements.pomodoroLongBreak.addEventListener("change", saveTimerConfig);
+elements.customFocus.addEventListener("change", saveTimerConfig);
+elements.customBreak.addEventListener("change", saveTimerConfig);
+
+// Custom color picker event listeners
+elements.customColorBtn.addEventListener("click", () => {
+  const isVisible = elements.colorPickerPanel.style.display === "flex";
+  elements.colorPickerPanel.style.display = isVisible ? "none" : "flex";
+});
+
+elements.applyCustomColor.addEventListener("click", () => {
+  const selectedColor = elements.colorPicker.value;
+  generateCustomPalette(selectedColor);
+  setPalette("custom");
+  
+  // Update custom color button to show selected color
+  elements.customColorBtn.style.background = selectedColor;
+  
+  // Save custom color
+  chrome.storage.local.set({ customColor: selectedColor });
+  
+  // Hide color picker panel
+  elements.colorPickerPanel.style.display = "none";
+});
+
+// Custom Date Picker
+let currentDate = new Date();
+let selectedDate = null;
+
+function initializeDatePicker() {
+  renderCalendar();
+}
+
+function renderCalendar() {
+  const year = currentDate.getFullYear();
+  const month = currentDate.getMonth();
+  
+  // Update month display
+  const monthNames = ['January', 'February', 'March', 'April', 'May', 'June',
+    'July', 'August', 'September', 'October', 'November', 'December'];
+  elements.currentMonth.textContent = `${monthNames[month]} ${year}`;
+  
+  // Clear previous days
+  elements.calendarDays.innerHTML = '';
+  
+  // Get first day of month and number of days
+  const firstDay = new Date(year, month, 1).getDay();
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+  const daysInPrevMonth = new Date(year, month, 0).getDate();
+  
+  const today = new Date();
+  const isCurrentMonth = today.getMonth() === month && today.getFullYear() === year;
+  
+  // Add previous month's trailing days
+  for (let i = firstDay - 1; i >= 0; i--) {
+    const day = daysInPrevMonth - i;
+    const dayEl = createDayElement(day, true, false);
+    elements.calendarDays.appendChild(dayEl);
+  }
+  
+  // Add current month's days
+  for (let day = 1; day <= daysInMonth; day++) {
+    const isToday = isCurrentMonth && day === today.getDate();
+    const isSelected = selectedDate && 
+      selectedDate.getDate() === day && 
+      selectedDate.getMonth() === month && 
+      selectedDate.getFullYear() === year;
+    const dayEl = createDayElement(day, false, isToday, isSelected);
+    dayEl.addEventListener('click', () => selectDate(year, month, day));
+    elements.calendarDays.appendChild(dayEl);
+  }
+  
+  // Add next month's leading days
+  const totalCells = elements.calendarDays.children.length;
+  const remainingCells = 42 - totalCells; // 6 rows * 7 days
+  for (let day = 1; day <= remainingCells; day++) {
+    const dayEl = createDayElement(day, true, false);
+    elements.calendarDays.appendChild(dayEl);
+  }
+}
+
+function createDayElement(day, isOtherMonth, isToday, isSelected) {
+  const dayEl = document.createElement('div');
+  dayEl.className = 'calendar-day';
+  if (isOtherMonth) dayEl.classList.add('other-month');
+  if (isToday) dayEl.classList.add('today');
+  if (isSelected) dayEl.classList.add('selected');
+  dayEl.textContent = day;
+  return dayEl;
+}
+
+function selectDate(year, month, day) {
+  selectedDate = new Date(year, month, day);
+  const monthStr = (month + 1).toString().padStart(2, '0');
+  const dayStr = day.toString().padStart(2, '0');
+  elements.taskDeadlineDate.value = `${monthStr}/${dayStr}/${year}`;
+  renderCalendar();
+  elements.datePickerDropdown.style.display = 'none';
+}
+
+function getDateValue() {
+  if (!selectedDate) return '';
+  const year = selectedDate.getFullYear();
+  const month = (selectedDate.getMonth() + 1).toString().padStart(2, '0');
+  const day = selectedDate.getDate().toString().padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
+elements.prevMonth.addEventListener('click', () => {
+  currentDate.setMonth(currentDate.getMonth() - 1);
+  renderCalendar();
+});
+
+elements.nextMonth.addEventListener('click', () => {
+  currentDate.setMonth(currentDate.getMonth() + 1);
+  renderCalendar();
+});
+
+elements.taskDeadlineDate.addEventListener('click', () => {
+  const isVisible = elements.datePickerDropdown.style.display === 'block';
+  elements.datePickerDropdown.style.display = isVisible ? 'none' : 'block';
+  if (!isVisible) {
+    currentDate = selectedDate ? new Date(selectedDate) : new Date();
+    renderCalendar();
+  }
+});
+
+// Custom Time Picker
+let selectedTime = { hour: 12, minute: 0, period: 'PM' };
+
+function initializeTimePicker() {
+  // Generate hours (1-12)
+  for (let i = 1; i <= 12; i++) {
+    const option = document.createElement('div');
+    option.className = 'time-option';
+    option.textContent = i.toString().padStart(2, '0');
+    option.dataset.value = i;
+    option.addEventListener('click', () => selectHour(i, option));
+    elements.hourScroll.appendChild(option);
+  }
+  
+  // Generate minutes (00-59)
+  for (let i = 0; i < 60; i++) {
+    const option = document.createElement('div');
+    option.className = 'time-option';
+    option.textContent = i.toString().padStart(2, '0');
+    option.dataset.value = i;
+    option.addEventListener('click', () => selectMinute(i, option));
+    elements.minuteScroll.appendChild(option);
+  }
+  
+  // Generate AM/PM
+  ['AM', 'PM'].forEach(period => {
+    const option = document.createElement('div');
+    option.className = 'time-option';
+    option.textContent = period;
+    option.dataset.value = period;
+    option.addEventListener('click', () => selectPeriod(period, option));
+    elements.periodScroll.appendChild(option);
+  });
+}
+
+function selectHour(hour, element) {
+  selectedTime.hour = hour;
+  elements.hourScroll.querySelectorAll('.time-option').forEach(el => el.classList.remove('selected'));
+  element.classList.add('selected');
+  updateTimeDisplay();
+}
+
+function selectMinute(minute, element) {
+  selectedTime.minute = minute;
+  elements.minuteScroll.querySelectorAll('.time-option').forEach(el => el.classList.remove('selected'));
+  element.classList.add('selected');
+  updateTimeDisplay();
+}
+
+function selectPeriod(period, element) {
+  selectedTime.period = period;
+  elements.periodScroll.querySelectorAll('.time-option').forEach(el => el.classList.remove('selected'));
+  element.classList.add('selected');
+  updateTimeDisplay();
+}
+
+function updateTimeDisplay() {
+  const hourStr = selectedTime.hour.toString().padStart(2, '0');
+  const minuteStr = selectedTime.minute.toString().padStart(2, '0');
+  elements.taskDeadlineTime.value = `${hourStr}:${minuteStr} ${selectedTime.period}`;
+}
+
+function getTimeValue() {
+  // Convert to 24-hour format for storage
+  let hour = selectedTime.hour;
+  if (selectedTime.period === 'PM' && hour !== 12) {
+    hour += 12;
+  } else if (selectedTime.period === 'AM' && hour === 12) {
+    hour = 0;
+  }
+  return `${hour.toString().padStart(2, '0')}:${selectedTime.minute.toString().padStart(2, '0')}`;
+}
+
+elements.taskDeadlineTime.addEventListener('click', () => {
+  const isVisible = elements.timePickerDropdown.style.display === 'flex';
+  elements.timePickerDropdown.style.display = isVisible ? 'none' : 'flex';
+});
+
+// Close pickers when clicking outside
+document.addEventListener('click', (e) => {
+  if (!e.target.closest('.custom-time-picker')) {
+    elements.timePickerDropdown.style.display = 'none';
+  }
+  if (!e.target.closest('.custom-date-picker')) {
+    elements.datePickerDropdown.style.display = 'none';
+  }
+});
+
+initializeDatePicker();
+initializeTimePicker();
 
 /*
 elements.login.addEventListener("click", async () => {});

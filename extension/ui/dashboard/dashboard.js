@@ -29,6 +29,12 @@ const elements = {
   recoveryEfficiencyBar: document.getElementById("recoveryEfficiencyBar"),
   paletteToggle: document.getElementById("paletteToggle"),
   paletteMenu: document.getElementById("paletteMenu"),
+  todayFocusTime: document.getElementById("todayFocusTime"),
+  sessionsCompleted: document.getElementById("sessionsCompleted"),
+  avgSessionLength: document.getElementById("avgSessionLength"),
+  sessionHistory: document.getElementById("sessionHistory"),
+  aiInsights: document.getElementById("aiInsights"),
+  aiInsightText: document.getElementById("aiInsightText"),
 };
 
 let tasks = [];
@@ -46,24 +52,104 @@ let sessionState = {
 
 const palettes = {
   slate: {
-    light: { accent: "#a8b5c8", accentHover: "#8fa3bc", study: "#7b9acc", entertainment: "#e09f9f" },
-    dark: { accent: "#9ca8ba", accentHover: "#b4bfce", study: "#5a7ab0", entertainment: "#c07f7f" },
+    light: { 
+      accent: "#a8b5c8", 
+      accentHover: "#8fa3bc", 
+      study: "#7b9acc", 
+      entertainment: "#e09f9f",
+      bgPrimary: "#fafafa",
+      bgSecondary: "#f5f5f5",
+      bgTertiary: "#ececec"
+    },
+    dark: { 
+      accent: "#9ca8ba", 
+      accentHover: "#b4bfce", 
+      study: "#5a7ab0", 
+      entertainment: "#c07f7f",
+      bgPrimary: "#2a2a2e",
+      bgSecondary: "#35353a",
+      bgTertiary: "#404046"
+    },
   },
   ocean: {
-    light: { accent: "#4f8bd6", accentHover: "#3b76c0", study: "#4f8bd6", entertainment: "#e09f9f" },
-    dark: { accent: "#6ea6e3", accentHover: "#88b6ea", study: "#6ea6e3", entertainment: "#c07f7f" },
+    light: { 
+      accent: "#4f8bd6", 
+      accentHover: "#3b76c0", 
+      study: "#4f8bd6", 
+      entertainment: "#e09f9f",
+      bgPrimary: "#f0f7fc",
+      bgSecondary: "#e6f2fa",
+      bgTertiary: "#d9ebf7"
+    },
+    dark: { 
+      accent: "#6ea6e3", 
+      accentHover: "#88b6ea", 
+      study: "#6ea6e3", 
+      entertainment: "#c07f7f",
+      bgPrimary: "#1a2633",
+      bgSecondary: "#243140",
+      bgTertiary: "#2e3d4d"
+    },
   },
   lavender: {
-    light: { accent: "#9b7ad9", accentHover: "#8462c3", study: "#9b7ad9", entertainment: "#e09f9f" },
-    dark: { accent: "#b79cf0", accentHover: "#c9b1f5", study: "#b79cf0", entertainment: "#c07f7f" },
+    light: { 
+      accent: "#9b7ad9", 
+      accentHover: "#8462c3", 
+      study: "#9b7ad9", 
+      entertainment: "#e09f9f",
+      bgPrimary: "#f8f5fc",
+      bgSecondary: "#f2ecfa",
+      bgTertiary: "#e9dff5"
+    },
+    dark: { 
+      accent: "#b79cf0", 
+      accentHover: "#c9b1f5", 
+      study: "#b79cf0", 
+      entertainment: "#c07f7f",
+      bgPrimary: "#2a2533",
+      bgSecondary: "#352f40",
+      bgTertiary: "#403a4d"
+    },
   },
   mint: {
-    light: { accent: "#3aa97a", accentHover: "#2e9468", study: "#3aa97a", entertainment: "#e09f9f" },
-    dark: { accent: "#59c892", accentHover: "#73d6a6", study: "#59c892", entertainment: "#c07f7f" },
+    light: { 
+      accent: "#3aa97a", 
+      accentHover: "#2e9468", 
+      study: "#3aa97a", 
+      entertainment: "#e09f9f",
+      bgPrimary: "#f3faf7",
+      bgSecondary: "#e8f5ef",
+      bgTertiary: "#daf0e5"
+    },
+    dark: { 
+      accent: "#59c892", 
+      accentHover: "#73d6a6", 
+      study: "#59c892", 
+      entertainment: "#c07f7f",
+      bgPrimary: "#1f2e28",
+      bgSecondary: "#293933",
+      bgTertiary: "#33443e"
+    },
   },
   sunset: {
-    light: { accent: "#e07b5f", accentHover: "#c9654d", study: "#7b9acc", entertainment: "#e07b5f" },
-    dark: { accent: "#f2a08c", accentHover: "#f6b1a1", study: "#6ea6e3", entertainment: "#f2a08c" },
+    light: { 
+      accent: "#e07b5f", 
+      accentHover: "#c9654d", 
+      study: "#7b9acc", 
+      entertainment: "#e07b5f",
+      bgPrimary: "#fcf6f4",
+      bgSecondary: "#faf0ec",
+      bgTertiary: "#f5e6e0"
+    },
+    dark: { 
+      accent: "#f2a08c", 
+      accentHover: "#f6b1a1", 
+      study: "#6ea6e3", 
+      entertainment: "#f2a08c",
+      bgPrimary: "#2e2623",
+      bgSecondary: "#39312d",
+      bgTertiary: "#443c38"
+    },
   },
 };
 
@@ -77,6 +163,9 @@ const applyPalette = (paletteId) => {
   root.style.setProperty("--accent-hover", colors.accentHover);
   root.style.setProperty("--study-color", colors.study);
   root.style.setProperty("--entertainment-color", colors.entertainment);
+  root.style.setProperty("--bg-primary", colors.bgPrimary);
+  root.style.setProperty("--bg-secondary", colors.bgSecondary);
+  root.style.setProperty("--bg-tertiary", colors.bgTertiary);
 
   if (elements.paletteToggle) {
     elements.paletteToggle.style.borderColor = colors.accent;
@@ -468,14 +557,139 @@ const analyzeTabs = async () => {
   }
 };
 
-const init = async () => {
-  await loadTheme();
-  await loadPalette();
-  await loadDailyStats();
-  await loadTasks();
-  await analyzeTabs();
-  setInterval(analyzeTabs, 30000);
+// Timer Functions
+const loadTimerSessions = async () => {
+  return new Promise((resolve) => {
+    chrome.storage.local.get(["timerHistory"], (result) => {
+      const sessions = result.timerHistory || [];
+      displayTimerStats(sessions);
+      displaySessionHistory(sessions);
+      checkForAIInsights(sessions);
+      resolve(sessions);
+    });
+  });
 };
+
+const displayTimerStats = (sessions) => {
+  const today = new Date().toDateString();
+  const todaySessions = sessions.filter(s => {
+    const sessionDate = new Date(s.startTime).toDateString();
+    return sessionDate === today && s.phase === "focus";
+  });
+  
+  // Calculate total focus time today
+  const totalMinutes = todaySessions.reduce((sum, s) => sum + s.duration, 0);
+  const hours = Math.floor(totalMinutes / 60);
+  const mins = totalMinutes % 60;
+  elements.todayFocusTime.textContent = `${hours}h ${mins}m`;
+  
+  // Sessions completed
+  elements.sessionsCompleted.textContent = todaySessions.length;
+  
+  // Average session length
+  if (todaySessions.length > 0) {
+    const avgMins = Math.round(totalMinutes / todaySessions.length);
+    elements.avgSessionLength.textContent = `${avgMins}m`;
+  } else {
+    elements.avgSessionLength.textContent = "--";
+  }
+};
+
+const displaySessionHistory = (sessions) => {
+  if (sessions.length === 0) {
+    elements.sessionHistory.innerHTML = '<p class="placeholder-text">No sessions yet. Start a focus timer to track your productivity!</p>';
+    return;
+  }
+  
+  // Show last 10 sessions
+  const recentSessions = sessions.slice(-10).reverse();
+  
+  elements.sessionHistory.innerHTML = recentSessions.map(session => {
+    const startTime = new Date(session.startTime);
+    const timeStr = startTime.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+    const dateStr = startTime.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+    const phaseLabel = session.phase === "focus" ? "🎯 Focus" : "☕ Break";
+    const modeLabel = session.mode === "pomodoro" ? "Pomodoro" : "Custom";
+    
+    return `
+      <div class="session-item">
+        <div class="session-info">
+          <span class="session-type ${session.phase}">${phaseLabel} - ${modeLabel}</span>
+          <span class="session-time">${dateStr} at ${timeStr}</span>
+        </div>
+        <span class="session-duration">${session.duration}m</span>
+      </div>
+    `;
+  }).join('');
+};
+
+const checkForAIInsights = (sessions) => {
+  // Show AI insights if user has at least 5 focus sessions
+  const focusSessions = sessions.filter(s => s.phase === "focus");
+  
+  if (focusSessions.length >= 5) {
+    elements.aiInsights.style.display = "block";
+    
+    // Calculate patterns for AI analysis
+    const patterns = analyzeSessionPatterns(focusSessions);
+    
+    // Generate insight text (placeholder for Person 2's AI integration)
+    let insightText = "Based on your focus sessions:\n\n";
+    
+    if (patterns.preferredDuration) {
+      insightText += `• You tend to focus best in ${patterns.preferredDuration}-minute sessions.\n`;
+    }
+    
+    if (patterns.peakTime) {
+      insightText += `• Your most productive time is around ${patterns.peakTime}.\n`;
+    }
+    
+    if (patterns.consistency) {
+      insightText += `• You maintain ${patterns.consistency} session consistency.\n`;
+    }
+    
+    insightText += `\n💡 AI Feedback Integration Point: This data is ready for Person 2's learning style analysis to provide personalized recommendations.`;
+    
+    elements.aiInsightText.textContent = insightText;
+  }
+};
+
+const analyzeSessionPatterns = (sessions) => {
+  // Calculate preferred session duration
+  const durations = sessions.map(s => s.duration);
+  const avgDuration = Math.round(durations.reduce((a, b) => a + b, 0) / durations.length);
+  
+  // Find peak productivity time
+  const hours = sessions.map(s => new Date(s.startTime).getHours());
+  const hourCounts = {};
+  hours.forEach(h => hourCounts[h] = (hourCounts[h] || 0) + 1);
+  const peakHour = Object.keys(hourCounts).reduce((a, b) => hourCounts[a] > hourCounts[b] ? a : b);
+  
+  // Calculate consistency (sessions in last 7 days)
+  const weekAgo = new Date();
+  weekAgo.setDate(weekAgo.getDate() - 7);
+  const recentSessions = sessions.filter(s => new Date(s.startTime) > weekAgo);
+  const consistency = recentSessions.length >= 7 ? "high" : recentSessions.length >= 3 ? "moderate" : "low";
+  
+  return {
+    preferredDuration: avgDuration,
+    peakTime: `${peakHour}:00`,
+    consistency: consistency
+  };
+};
+
+const init = async () => {
+  await loadPalette();
+  await loadTheme();
+  await loadTasks();
+  await loadDailyStats();
+  await loadTimerSessions();
+  
+  // Refresh timer stats every 30 seconds
+  setInterval(loadTimerSessions, 30000);
+};
+
+init();
 
 elements.addTaskBtn.addEventListener("click", addTask);
 elements.newTaskInput.addEventListener("keypress", (e) => {
