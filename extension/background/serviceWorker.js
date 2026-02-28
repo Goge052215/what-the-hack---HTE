@@ -303,6 +303,7 @@ chrome.runtime.onInstalled.addListener(() => {
 });
 
 chrome.runtime.onStartup.addListener(() => {
+  console.log("onStartup()");
   ensureAiSuggestionAlarm();
   refreshAiSuggestionsForTasks();
 });
