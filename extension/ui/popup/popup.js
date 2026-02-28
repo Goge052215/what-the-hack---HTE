@@ -622,7 +622,7 @@ const saveNotificationSettings = () => {
     breakReminders: elements.breakReminders.checked,
     deadlineReminders: elements.deadlineReminders.checked,
     taskNudges: elements.taskNudges.checked,
-    focusDuration: parseInt(elements.focusDuration.value) || 45
+    focusDuration: parseInt(elements.focusDuration.value) || 45,
   };
   
   chrome.storage.local.set({ notificationSettings });
@@ -633,10 +633,32 @@ const saveNotificationSettings = () => {
   }
 };
 
+const initAccordion = () => {
+  const accordionHeaders = document.querySelectorAll('.accordion-header');
+  
+  accordionHeaders.forEach(header => {
+    header.addEventListener('click', () => {
+      const section = header.dataset.section;
+      const content = document.querySelector(`.accordion-content[data-section="${section}"]`);
+      const isActive = header.classList.contains('active');
+      
+      // Toggle current section
+      if (isActive) {
+        header.classList.remove('active');
+        content.classList.remove('active');
+      } else {
+        header.classList.add('active');
+        content.classList.add('active');
+      }
+    });
+  });
+};
+
 const init = async () => {
   loadTheme();
   loadTasks();
   loadNotificationSettings();
+  initAccordion();
   updateCurrentTask();
   const baseUrl = await ensureApiBaseUrl();
   elements.apiBaseUrl.value = baseUrl;
