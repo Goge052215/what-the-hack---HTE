@@ -571,39 +571,43 @@ const loadTimerConfig = () => {
 };
 
 const loadTimerState = () => {
-  chrome.storage.local.get(["timerState"], (result) => {
-    if (result.timerState) {
-      const saved = result.timerState;
-      timerState.mode = saved.mode || timerState.mode;
-      timerState.phase = saved.phase || timerState.phase;
-      timerState.isRunning = Boolean(saved.isRunning);
-      timerState.timeRemaining = typeof saved.timeRemaining === "number" ? saved.timeRemaining : timerState.timeRemaining;
-      timerState.startedAt = saved.startedAt || null;
-      timerState.baseRemaining = typeof saved.baseRemaining === "number" ? saved.baseRemaining : null;
-      timerState.pomodoroCount = typeof saved.pomodoroCount === "number" ? saved.pomodoroCount : timerState.pomodoroCount;
-    } else {
-      const duration = timerState.mode === "pomodoro" 
-        ? timerConfig.pomodoro.focus 
-        : timerConfig.custom.focus;
-      timerState.timeRemaining = duration * 60;
-      timerState.phase = "focus";
-    }
-
-    applyTimerModeUI();
-    if (timerState.isRunning) {
-      syncRemainingFromStart();
-      if (timerState.timeRemaining <= 0) {
-        completeTimerPhase(timerState.startedAt || Date.now(), timerState.phase);
-        return;
+  return new Promise((resolve) => {
+    chrome.storage.local.get(["timerState"], (result) => {
+      if (result.timerState) {
+        const saved = result.timerState;
+        timerState.mode = saved.mode || timerState.mode;
+        timerState.phase = saved.phase || timerState.phase;
+        timerState.isRunning = Boolean(saved.isRunning);
+        timerState.timeRemaining = typeof saved.timeRemaining === "number" ? saved.timeRemaining : timerState.timeRemaining;
+        timerState.startedAt = saved.startedAt || null;
+        timerState.baseRemaining = typeof saved.baseRemaining === "number" ? saved.baseRemaining : null;
+        timerState.pomodoroCount = typeof saved.pomodoroCount === "number" ? saved.pomodoroCount : timerState.pomodoroCount;
+      } else {
+        const duration = timerState.mode === "pomodoro" 
+          ? timerConfig.pomodoro.focus 
+          : timerConfig.custom.focus;
+        timerState.timeRemaining = duration * 60;
+        timerState.phase = "focus";
       }
-      scheduleTimerAlarm();
-      applyTimerButtons();
-      runTimerInterval();
-    } else {
-      applyTimerButtons();
-      updateTimerDisplay();
-      saveTimerState();
-    }
+
+      applyTimerModeUI();
+      if (timerState.isRunning) {
+        syncRemainingFromStart();
+        if (timerState.timeRemaining <= 0) {
+          completeTimerPhase(timerState.startedAt || Date.now(), timerState.phase);
+          resolve();
+          return;
+        }
+        scheduleTimerAlarm();
+        applyTimerButtons();
+        runTimerInterval();
+      } else {
+        applyTimerButtons();
+        updateTimerDisplay();
+        saveTimerState();
+      }
+      resolve();
+    });
   });
 };
 
@@ -1773,7 +1777,7 @@ const init = async () => {
   await loadTaskHistory();
   loadNotificationSettings();
   await loadTimerConfig();
-  loadTimerState();
+  await loadTimerState();
   loadTimerHistory();
   initAccordion();
   updateCurrentTask();
