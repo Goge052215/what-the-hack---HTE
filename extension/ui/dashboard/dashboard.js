@@ -1262,6 +1262,43 @@ const analyzeSessionPatterns = (sessions) => {
   };
 };
 
+// Listen for storage changes to sync palette and theme in real-time
+chrome.storage.onChanged.addListener((changes, areaName) => {
+  if (areaName !== "local") return;
+  
+  // Sync palette changes from popup
+  if (changes.palette) {
+    const newPalette = changes.palette.newValue;
+    if (newPalette && newPalette !== currentPaletteId) {
+      currentPaletteId = newPalette;
+      applyPalette(newPalette);
+      updatePaletteMenuSelection();
+    }
+  }
+  
+  // Sync custom color changes from popup
+  if (changes.customColor) {
+    const newColor = changes.customColor.newValue;
+    if (newColor && currentPaletteId === "custom") {
+      generateCustomPalette(newColor);
+      applyPalette("custom");
+    }
+  }
+  
+  // Sync theme changes from popup
+  if (changes.theme) {
+    const newTheme = changes.theme.newValue;
+    if (newTheme === "dark") {
+      document.body.classList.add("dark-theme");
+      if (elements.themeToggle) elements.themeToggle.textContent = "🌙";
+    } else {
+      document.body.classList.remove("dark-theme");
+      if (elements.themeToggle) elements.themeToggle.textContent = "☀️";
+    }
+    applyPalette(currentPaletteId);
+  }
+});
+
 const init = async () => {
   await loadPalette();
   await loadTheme();
