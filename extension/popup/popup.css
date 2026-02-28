@@ -88,3 +88,40 @@ button#logout {
   font-size: 10px;
   word-break: break-all;
 }
+
+.section h2 {
+  margin: 0 0 8px;
+  font-size: 14px;
+  color: #38bdf8;
+}
+
+#subtasksContainer {
+  margin-top: 8px;
+}
+
+#subtasksStatus {
+  margin: 4px 0;
+  font-size: 12px;
+  color: #94a3b8;
+}
+
+#subtasksList li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px;
+}
+
+#subtasksList input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  cursor: pointer;
+  accent-color: #38bdf8;
+}
+
+#subtasksList label {
+  flex: 1;
+  font-size: 12px;
+  color: #e2e8f0;
+  cursor: pointer;
+}

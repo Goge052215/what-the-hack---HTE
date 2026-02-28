@@ -4,6 +4,11 @@ const elements = {
   status: document.getElementById("status"),
   apiBaseUrl: document.getElementById("apiBaseUrl"),
   saveApiBaseUrl: document.getElementById("saveApiBaseUrl"),
+  taskInput: document.getElementById("taskInput"),
+  splitTask: document.getElementById("splitTask"),
+  subtasksContainer: document.getElementById("subtasksContainer"),
+  subtasksStatus: document.getElementById("subtasksStatus"),
+  subtasksList: document.getElementById("subtasksList"),
   analysisStatus: document.getElementById("analysisStatus"),
   analysisScore: document.getElementById("analysisScore"),
   analysisMeta: document.getElementById("analysisMeta"),
@@ -116,10 +121,70 @@ const init = async () => {
   setInterval(analyzeTabs, 30000);
 };
 
+const splitTask = async () => {
+  const taskDescription = elements.taskInput.value.trim();
+  if (!taskDescription) {
+    elements.subtasksStatus.textContent = "Please enter a task description";
+    elements.subtasksContainer.style.display = "block";
+    return;
+  }
+  
+  elements.subtasksContainer.style.display = "block";
+  elements.subtasksStatus.textContent = "Splitting task...";
+  elements.subtasksList.innerHTML = "";
+  
+  try {
+    const response = await apiRequest("/api/tasks", {
+      method: "POST",
+      body: { description: taskDescription },
+    });
+    
+    if (!response.ok) {
+      elements.subtasksStatus.textContent = "Failed to split task. Using local split.";
+      const localSubtasks = [
+        `Research: ${taskDescription}`,
+        `Outline: ${taskDescription}`,
+        `Execute: ${taskDescription}`,
+        `Review: ${taskDescription}`,
+      ];
+      renderSubtasks(localSubtasks);
+      return;
+    }
+    
+    const subtasks = response.data?.subtasks || [];
+    if (subtasks.length === 0) {
+      elements.subtasksStatus.textContent = "No subtasks generated";
+      return;
+    }
+    
+    elements.subtasksStatus.textContent = `Split into ${subtasks.length} subtasks:`;
+    renderSubtasks(subtasks);
+  } catch (error) {
+    elements.subtasksStatus.textContent = "Error splitting task";
+  }
+};
+
+const renderSubtasks = (subtasks) => {
+  elements.subtasksList.innerHTML = subtasks
+    .map(
+      (subtask, index) =>
+        `<li><input type="checkbox" id="subtask-${index}" /><label for="subtask-${index}">${subtask}</label></li>`
+    )
+    .join("");
+};
+
 elements.saveApiBaseUrl.addEventListener("click", async () => {
   const value = elements.apiBaseUrl.value.trim();
   if (!value) return;
   await setApiBaseUrl(value);
+});
+
+elements.splitTask.addEventListener("click", splitTask);
+
+elements.taskInput.addEventListener("keypress", (e) => {
+  if (e.key === "Enter") {
+    splitTask();
+  }
 });
 
 /*

@@ -26,6 +26,16 @@
       </section>
       -->
       <section class="section">
+        <h2>Add Task</h2>
+        <label for="taskInput">What do you want to accomplish?</label>
+        <input id="taskInput" type="text" placeholder="e.g., Write research paper on AI" />
+        <button id="splitTask">Split into Subtasks</button>
+        <div id="subtasksContainer" style="display: none;">
+          <p id="subtasksStatus">Splitting task...</p>
+          <ul id="subtasksList" class="compact-list"></ul>
+        </div>
+      </section>
+      <section class="section">
         <h2>Tab Focus Analysis</h2>
         <p id="analysisStatus">Waiting for analysis...</p>
         <p id="analysisScore">Focus score: --</p>
