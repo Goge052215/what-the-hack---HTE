@@ -387,14 +387,25 @@ const scoreContext = (context) => {
   return Math.max(0, Math.min(1, focusScore - distractionPenalty));
 };
 
-const buildTabContext = async () => {
-  const tabs = await chrome.tabs.query({});
+const buildContext = (tabs) => {
   const entries = tabs
     .filter((tab) => tab?.url && !tab.url.startsWith("chrome://") && !tab.url.startsWith("edge://"))
-    .slice(0, 20)
-    .map((tab) => ({ title: tab.title || "Untitled", url: tab.url }));
+    .sort((a, b) => (b.lastAccessed || 0) - (a.lastAccessed || 0)) // Sort by most recently accessed
+    .slice(0, 20) // Get last 20 accessed tabs
+    .map((tab) => ({
+      title: tab.title || "Untitled",
+      url: tab.url,
+      active: tab.active || false,
+      lastAccessed: tab.lastAccessed,
+    }));
+  return { tabs: entries, count: entries.length };
+};
+
+const buildTabContext = async () => {
+  const tabs = await chrome.tabs.query({});
+  const { tabs: entries, count } = buildContext(tabs);
   const context = entries.map((tab) => `${tab.title} - ${tab.url}`).join(" | ");
-  return { context, count: entries.length, entries };
+  return { context, count, entries };
 };
 
 const analyzeTabs = async () => {
