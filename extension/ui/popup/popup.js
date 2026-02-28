@@ -679,8 +679,8 @@ const testAllNotifications = async () => {
       chrome.notifications.create('test-distraction', {
         type: 'basic',
         iconUrl: iconUrl,
-        title: '🤔 Noticed you\'re switching tabs',
-        message: 'It seems you might be distracted. Consider returning to your task.',
+        title: '👋 Hey! Get back to your task',
+        message: 'You\'ve been switching tabs a lot. Time to refocus on what matters!',
         priority: 2
       }, (notificationId) => {
         console.log('Distraction notification created:', notificationId);
@@ -693,8 +693,8 @@ const testAllNotifications = async () => {
       chrome.notifications.create('test-break', {
         type: 'basic',
         iconUrl: iconUrl,
-        title: '⏰ Time for a break!',
-        message: 'You\'ve been focused for 45 minutes. Take a 5-minute break to recharge.',
+        title: '☕ Take a break!',
+        message: 'You\'ve been working hard for 45 minutes. Step away for 5 minutes to recharge your brain!',
         buttons: [
           { title: 'Take Break' },
           { title: 'Keep Working' }
@@ -711,8 +711,8 @@ const testAllNotifications = async () => {
       chrome.notifications.create('test-deadline-24h', {
         type: 'basic',
         iconUrl: iconUrl,
-        title: '⚠️ Deadline Approaching',
-        message: 'Essay Assignment is due in 24 hours!',
+        title: '📅 Don\'t forget!',
+        message: 'Your Essay Assignment is due tomorrow. Make sure you\'re on track!',
         priority: 2
       }, (notificationId) => {
         console.log('24h deadline notification created:', notificationId);
@@ -725,8 +725,8 @@ const testAllNotifications = async () => {
       chrome.notifications.create('test-deadline-1h', {
         type: 'basic',
         iconUrl: iconUrl,
-        title: '⚠️ Deadline Soon!',
-        message: 'Math Exam is due in 1 hour!',
+        title: '⏰ One hour left!',
+        message: 'Math Exam is due in 1 hour. Time to wrap up and submit!',
         priority: 2
       }, (notificationId) => {
         console.log('1h deadline notification created:', notificationId);
@@ -739,8 +739,8 @@ const testAllNotifications = async () => {
       chrome.notifications.create('test-deadline-15m', {
         type: 'basic',
         iconUrl: iconUrl,
-        title: '🚨 Deadline Imminent!',
-        message: 'Project Submission is due in 15 minutes!',
+        title: '🚨 Final warning!',
+        message: 'Project Submission is due in 15 minutes! Submit now!',
         priority: 2
       }, (notificationId) => {
         console.log('15m deadline notification created:', notificationId);
@@ -753,8 +753,8 @@ const testAllNotifications = async () => {
       chrome.notifications.create('test-nudge', {
         type: 'basic',
         iconUrl: iconUrl,
-        title: '💡 Task Suggestion',
-        message: 'You just finished a video. Want to summarize key points?',
+        title: '💡 Quick tip!',
+        message: 'You just watched a lecture video. Take 2 minutes to write down the key points while they\'re fresh!',
         priority: 2
       }, (notificationId) => {
         console.log('Task nudge notification created:', notificationId);

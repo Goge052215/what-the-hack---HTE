@@ -29,8 +29,8 @@ chrome.tabs.onActivated.addListener(async (activeInfo) => {
     if (tabSwitchCount >= 3) {
       showNotification(
         "distraction",
-        "🤔 Noticed you're switching tabs",
-        "It seems you might be distracted. Consider returning to your task."
+        "👋 Hey! Get back to your task",
+        "You've been switching tabs a lot. Time to refocus on what matters!"
       );
       tabSwitchCount = 0;
     }
@@ -148,8 +148,8 @@ async function checkBreakReminder(settings) {
   if (elapsed >= focusDurationMs && elapsed < focusDurationMs + 60000) {
     showNotification(
       "break-reminder",
-      "⏰ Time for a break!",
-      `You've been focused for ${settings.focusDuration} minutes. Take a 5-minute break to recharge.`,
+      "☕ Take a break!",
+      `You've been working hard for ${settings.focusDuration} minutes. Step away for 5 minutes to recharge your brain!`,
       [
         { title: "Take Break" },
         { title: "Keep Working" }
@@ -175,20 +175,20 @@ async function checkDeadlines(settings) {
     if (hoursUntil <= 24 && hoursUntil > 23.9) {
       showNotification(
         `deadline-24h-${task.id}`,
-        "⚠️ Deadline Approaching",
-        `${task.description} is due in 24 hours!`
+        "📅 Don't forget!",
+        `Your ${task.description} is due tomorrow. Make sure you're on track!`
       );
     } else if (hoursUntil <= 1 && hoursUntil > 0.95) {
       showNotification(
         `deadline-1h-${task.id}`,
-        "⚠️ Deadline Soon!",
-        `${task.description} is due in 1 hour!`
+        "⏰ One hour left!",
+        `${task.description} is due in 1 hour. Time to wrap up and submit!`
       );
     } else if (hoursUntil <= 0.25 && hoursUntil > 0.2) {
       showNotification(
         `deadline-15m-${task.id}`,
-        "🚨 Deadline Imminent!",
-        `${task.description} is due in 15 minutes!`
+        "🚨 Final warning!",
+        `${task.description} is due in 15 minutes! Submit now!`
       );
     }
   });
