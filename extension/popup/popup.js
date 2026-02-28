@@ -5,6 +5,13 @@ const elements = {
   saveApiBaseUrl: document.getElementById("saveApiBaseUrl"),
   taskInput: document.getElementById("taskInput"),
   addTaskBtn: document.getElementById("addTaskBtn"),
+  saveTaskBtn: document.getElementById("saveTaskBtn"),
+  currentTaskTitle: document.getElementById("currentTaskTitle"),
+  progressContainer: document.getElementById("progressContainer"),
+  progressBar: document.getElementById("progressBar"),
+  statusNotStarted: document.getElementById("statusNotStarted"),
+  statusOngoing: document.getElementById("statusOngoing"),
+  statusCompleted: document.getElementById("statusCompleted"),
   subtasksContainer: document.getElementById("subtasksContainer"),
   subtasksStatus: document.getElementById("subtasksStatus"),
   subtasksList: document.getElementById("subtasksList"),
@@ -12,15 +19,18 @@ const elements = {
   analysisScore: document.getElementById("analysisScore"),
   analysisMeta: document.getElementById("analysisMeta"),
   analysisList: document.getElementById("analysisList"),
-  themeToggle: document.getElementById("themeToggle"),
+  lightThemeBtn: document.getElementById("lightThemeBtn"),
+  darkThemeBtn: document.getElementById("darkThemeBtn"),
   settingsBtn: document.getElementById("settingsBtn"),
   taskListBtn: document.getElementById("taskListBtn"),
   taskCount: document.getElementById("taskCount"),
   settingsPanel: document.getElementById("settingsPanel"),
   taskListPanel: document.getElementById("taskListPanel"),
+  addTaskPanel: document.getElementById("addTaskPanel"),
 };
 
 let tasks = [];
+let currentTaskIndex = 0;
 
 const loadTheme = () => {
   chrome.storage.local.get(["theme"], (result) => {
@@ -32,22 +42,22 @@ const loadTheme = () => {
 const applyTheme = (theme) => {
   if (theme === "dark") {
     document.body.classList.add("dark-theme");
-    elements.themeToggle.textContent = "🌙";
+    elements.lightThemeBtn.classList.remove("active");
+    elements.darkThemeBtn.classList.add("active");
   } else {
     document.body.classList.remove("dark-theme");
-    elements.themeToggle.textContent = "☀️";
+    elements.lightThemeBtn.classList.add("active");
+    elements.darkThemeBtn.classList.remove("active");
   }
 };
 
-const toggleTheme = () => {
-  const isDark = document.body.classList.contains("dark-theme");
-  const newTheme = isDark ? "light" : "dark";
-  applyTheme(newTheme);
-  chrome.storage.local.set({ theme: newTheme });
+const setTheme = (theme) => {
+  applyTheme(theme);
+  chrome.storage.local.set({ theme });
 };
 
 const togglePanel = (panelToShow) => {
-  const panels = [elements.settingsPanel, elements.taskListPanel];
+  const panels = [elements.settingsPanel, elements.taskListPanel, elements.addTaskPanel];
   panels.forEach((panel) => {
     if (panel === panelToShow) {
       panel.style.display = panel.style.display === "none" ? "block" : "none";
@@ -81,6 +91,7 @@ const addTask = async () => {
   const newTask = {
     id: Date.now().toString(),
     description,
+    status: "not-started",
     completed: false,
     createdAt: new Date().toISOString(),
   };
@@ -88,7 +99,9 @@ const addTask = async () => {
   tasks.push(newTask);
   saveTasks();
   renderTasks();
+  updateCurrentTask();
   elements.taskInput.value = "";
+  elements.addTaskPanel.style.display = "none";
   
   // Optionally call API to split task
   try {
@@ -108,9 +121,70 @@ const toggleTask = (taskId) => {
   const task = tasks.find((t) => t.id === taskId);
   if (task) {
     task.completed = !task.completed;
+    if (task.completed && !task.status) {
+      task.status = "completed";
+    }
     saveTasks();
     renderTasks();
+    updateCurrentTask();
   }
+};
+
+const updateCurrentTask = () => {
+  // Find first incomplete task
+  const activeTask = tasks.find((t) => !t.completed);
+  
+  if (!activeTask) {
+    elements.currentTaskTitle.textContent = "No active task";
+    elements.progressContainer.style.display = "none";
+    return;
+  }
+
+  currentTaskIndex = tasks.indexOf(activeTask);
+  elements.currentTaskTitle.textContent = activeTask.description;
+  elements.progressContainer.style.display = "block";
+  
+  // Update progress bar and status buttons
+  const status = activeTask.status || "not-started";
+  updateProgressBar(status);
+  updateStatusButtons(status);
+};
+
+const updateProgressBar = (status) => {
+  const widths = {
+    "not-started": "0%",
+    "ongoing": "50%",
+    "completed": "100%",
+  };
+  elements.progressBar.style.width = widths[status] || "0%";
+};
+
+const updateStatusButtons = (status) => {
+  [elements.statusNotStarted, elements.statusOngoing, elements.statusCompleted].forEach((btn) => {
+    btn.classList.remove("active");
+  });
+  
+  if (status === "not-started") {
+    elements.statusNotStarted.classList.add("active");
+  } else if (status === "ongoing") {
+    elements.statusOngoing.classList.add("active");
+  } else if (status === "completed") {
+    elements.statusCompleted.classList.add("active");
+  }
+};
+
+const setTaskStatus = (status) => {
+  const activeTask = tasks.find((t) => !t.completed);
+  if (!activeTask) return;
+  
+  activeTask.status = status;
+  if (status === "completed") {
+    activeTask.completed = true;
+  }
+  
+  saveTasks();
+  renderTasks();
+  updateCurrentTask();
 };
 
 const renderTasks = () => {
@@ -243,6 +317,7 @@ const analyzeTabs = async () => {
 const init = async () => {
   loadTheme();
   loadTasks();
+  updateCurrentTask();
   const baseUrl = await ensureApiBaseUrl();
   elements.apiBaseUrl.value = baseUrl;
   await analyzeTabs();
@@ -256,7 +331,11 @@ elements.saveApiBaseUrl.addEventListener("click", async () => {
   await setApiBaseUrl(value);
 });
 
-elements.addTaskBtn.addEventListener("click", addTask);
+elements.addTaskBtn.addEventListener("click", () => {
+  togglePanel(elements.addTaskPanel);
+});
+
+elements.saveTaskBtn.addEventListener("click", addTask);
 
 elements.taskInput.addEventListener("keypress", (e) => {
   if (e.key === "Enter") {
@@ -264,7 +343,13 @@ elements.taskInput.addEventListener("keypress", (e) => {
   }
 });
 
-elements.themeToggle.addEventListener("click", toggleTheme);
+elements.lightThemeBtn.addEventListener("click", () => {
+  setTheme("light");
+});
+
+elements.darkThemeBtn.addEventListener("click", () => {
+  setTheme("dark");
+});
 
 elements.settingsBtn.addEventListener("click", () => {
   togglePanel(elements.settingsPanel);
@@ -272,6 +357,18 @@ elements.settingsBtn.addEventListener("click", () => {
 
 elements.taskListBtn.addEventListener("click", () => {
   togglePanel(elements.taskListPanel);
+});
+
+elements.statusNotStarted.addEventListener("click", () => {
+  setTaskStatus("not-started");
+});
+
+elements.statusOngoing.addEventListener("click", () => {
+  setTaskStatus("ongoing");
+});
+
+elements.statusCompleted.addEventListener("click", () => {
+  setTaskStatus("completed");
 });
 
 /*

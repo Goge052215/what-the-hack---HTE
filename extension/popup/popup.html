@@ -16,18 +16,48 @@
           <span class="task-count" id="taskCount">0</span>
           📋
         </button>
-        <button id="themeToggle" class="icon-btn" aria-label="Toggle theme" title="Toggle Theme">☀️</button>
         <button id="settingsBtn" class="icon-btn" aria-label="Settings" title="Settings">⚙️</button>
       </div>
 
-      <div class="main-input">
-        <input id="taskInput" type="text" placeholder="Add a new task..." />
-        <button id="addTaskBtn" class="add-btn">+</button>
+      <!-- Current Task Display -->
+      <div id="currentTaskDisplay" class="current-task">
+        <div class="task-header">
+          <h2 id="currentTaskTitle">No active task</h2>
+          <div class="task-actions">
+            <button id="addTaskBtn" class="icon-btn-small" title="Add Task">+</button>
+          </div>
+        </div>
+        <div id="progressContainer" class="progress-container" style="display: none;">
+          <div class="progress-bar-wrapper">
+            <div id="progressBar" class="progress-bar-fill"></div>
+          </div>
+          <div class="progress-status">
+            <button id="statusNotStarted" class="status-btn" data-status="not-started">Not Started</button>
+            <button id="statusOngoing" class="status-btn" data-status="ongoing">Ongoing</button>
+            <button id="statusCompleted" class="status-btn" data-status="completed">Completed</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Add Task Input (hidden by default) -->
+      <div id="addTaskPanel" class="panel" style="display: none;">
+        <h3>Add New Task</h3>
+        <input id="taskInput" type="text" placeholder="What do you want to accomplish?" />
+        <button id="saveTaskBtn" class="save-btn">Add Task</button>
       </div>
 
       <!-- Settings Panel (hidden by default) -->
       <div id="settingsPanel" class="panel" style="display: none;">
         <h3>Settings</h3>
+        
+        <label>Theme</label>
+        <div class="theme-selector">
+          <button id="lightThemeBtn" class="theme-option">☀️ Light</button>
+          <button id="darkThemeBtn" class="theme-option">🌙 Dark</button>
+        </div>
+        
+        <div class="divider"></div>
+        
         <label for="apiBaseUrl">API Base URL</label>
         <input id="apiBaseUrl" type="text" placeholder="http://localhost:5174" />
         <button id="saveApiBaseUrl">Save</button>
