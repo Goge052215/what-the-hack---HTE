@@ -564,6 +564,10 @@ select {
   -ms-overflow-style: none;
 }
 
+.time-picker-scroll {
+  scroll-snap-type: y mandatory;
+}
+
 .time-picker-scroll::-webkit-scrollbar,
 .compact-list::-webkit-scrollbar,
 .task-list::-webkit-scrollbar {
@@ -583,6 +587,7 @@ select {
   color: var(--text-primary);
   transition: all 0.2s ease;
   user-select: none;
+  scroll-snap-align: center;
 }
 
 .time-option:hover {
@@ -625,8 +630,7 @@ select {
   font-size: 12px;
   font-weight: 600;
   transition: all 0.2s ease;
-  cursor: pointer;
-  user-select: none;
+  cursor: text;
 }
 
 #taskDeadlineTime:hover,

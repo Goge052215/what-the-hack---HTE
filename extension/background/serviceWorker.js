@@ -120,6 +120,13 @@ const recordSession = async ({ durationMin, breakTaken }) => {
   });
 };
 
+const clearTimerAlarms = async () => {
+  const alarms = await chrome.alarms.getAll();
+  alarms
+    .filter((alarm) => alarm.name.startsWith("timer-complete-"))
+    .forEach((alarm) => chrome.alarms.clear(alarm.name));
+};
+
 let focusStartTime = null;
 let lastTabId = null;
 let tabSwitchCount = 0;
@@ -212,6 +219,27 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     focusStartTime = null;
     sendResponse({ ok: true });
   }
+  if (message?.type === "scheduleTimerAlarm") {
+    const remainingMs = Number(message.remainingMs);
+    const phase = message.phase === "rest" ? "rest" : "focus";
+    if (!Number.isFinite(remainingMs) || remainingMs <= 0) {
+      sendResponse({ ok: false });
+      return false;
+    }
+    clearTimerAlarms()
+      .then(() => {
+        chrome.alarms.create(`timer-complete-${phase}`, { when: Date.now() + remainingMs });
+      })
+      .then(() => sendResponse({ ok: true }))
+      .catch(() => sendResponse({ ok: false }));
+    return true;
+  }
+  if (message?.type === "clearTimerAlarm") {
+    clearTimerAlarms()
+      .then(() => sendResponse({ ok: true }))
+      .catch(() => sendResponse({ ok: false }));
+    return true;
+  }
   return false;
 });
 
@@ -235,6 +263,27 @@ chrome.idle.onStateChanged.addListener((state) => {
 });
 
 chrome.alarms.onAlarm.addListener(async (alarm) => {
+  if (alarm?.name && alarm.name.startsWith("timer-complete-")) {
+    const settings = await getNotificationSettings();
+    if (!settings.enabled) return;
+    const phase = alarm.name.replace("timer-complete-", "");
+    const state = await getStored(["timerState"]);
+    const timerState = state.timerState;
+    if (!timerState?.isRunning) return;
+    if (timerState.phase !== phase) return;
+    if (!timerState.startedAt || typeof timerState.baseRemaining !== "number") return;
+    const remainingMs = timerState.baseRemaining * 1000 - (Date.now() - timerState.startedAt);
+    if (remainingMs > 1000) {
+      chrome.alarms.create(`timer-complete-${phase}`, { when: Date.now() + remainingMs });
+      return;
+    }
+    showNotification(
+      `timer-complete-${phase}`,
+      phase === "focus" ? "Focus Session Complete!" : "Break Complete!",
+      phase === "focus" ? "Time for a break!" : "Ready to focus again?"
+    );
+    return;
+  }
   if (alarm?.name && alarm.name.startsWith("phase-")) {
     const schedule = await getActiveSchedule();
     if (!schedule?.blocks?.length) return;

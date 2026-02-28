@@ -87,6 +87,8 @@ let tasks = [];
 let currentTaskIndex = 0;
 let selectedTaskType = "assignment";
 let currentPaletteId = "slate";
+const TASK_HISTORY_RETENTION_DAYS = 30;
+let taskHistory = [];
 let notificationSettings = {
   enabled: true,
   distractionAlerts: true,
@@ -311,6 +313,19 @@ const saveTimerState = () => {
   chrome.storage.local.set({ timerState: payload });
 };
 
+const scheduleTimerAlarm = () => {
+  if (!timerState.isRunning || timerState.timeRemaining <= 0) return;
+  chrome.runtime.sendMessage({
+    type: "scheduleTimerAlarm",
+    remainingMs: timerState.timeRemaining * 1000,
+    phase: timerState.phase,
+  });
+};
+
+const clearTimerAlarm = () => {
+  chrome.runtime.sendMessage({ type: "clearTimerAlarm" });
+};
+
 const applyTimerButtons = () => {
   if (timerState.isRunning) {
     elements.timerStartBtn.style.display = "none";
@@ -366,11 +381,13 @@ const startTimer = () => {
   applyTimerButtons();
   runTimerInterval();
   saveTimerState();
+  scheduleTimerAlarm();
 };
 
 const pauseTimer = () => {
   if (!timerState.isRunning) return;
   
+  clearTimerAlarm();
   syncRemainingFromStart();
   timerState.isRunning = false;
   timerState.startedAt = null;
@@ -387,6 +404,7 @@ const pauseTimer = () => {
 
 const resetTimer = () => {
   pauseTimer();
+  clearTimerAlarm();
   
   const duration = timerState.mode === "pomodoro" 
     ? timerConfig.pomodoro.focus 
@@ -401,6 +419,7 @@ const resetTimer = () => {
 };
 
 const completeTimerPhase = (startTime, phase) => {
+  clearTimerAlarm();
   pauseTimer();
   
   // Save session to history
@@ -459,6 +478,7 @@ const completeTimerPhase = (startTime, phase) => {
 
 const skipBreak = () => {
   if (timerState.phase !== "rest") return;
+  clearTimerAlarm();
   pauseTimer();
   timerState.phase = "focus";
   const focusDuration = timerState.mode === "pomodoro" 
@@ -530,6 +550,7 @@ const loadTimerState = () => {
         completeTimerPhase(timerState.startedAt || Date.now(), timerState.phase);
         return;
       }
+      scheduleTimerAlarm();
       applyTimerButtons();
       runTimerInterval();
     } else {
@@ -679,17 +700,55 @@ const saveTasks = () => {
   updateTaskCount();
 };
 
+const pruneTaskHistory = (items) => {
+  const cutoff = Date.now() - TASK_HISTORY_RETENTION_DAYS * 86400000;
+  return items.filter((task) => {
+    const stamp = new Date(task.completedAt || task.archivedAt || task.createdAt || Date.now()).getTime();
+    return stamp >= cutoff;
+  });
+};
+
+const loadTaskHistory = () =>
+  new Promise((resolve) => {
+    chrome.storage.local.get(["taskHistory"], (result) => {
+      taskHistory = pruneTaskHistory(Array.isArray(result.taskHistory) ? result.taskHistory : []);
+      chrome.storage.local.set({ taskHistory });
+      resolve(taskHistory);
+    });
+  });
+
+const saveTaskHistory = () => {
+  chrome.storage.local.set({ taskHistory });
+};
+
+const archiveTask = (task) => {
+  if (!task) return;
+  const archivedAt = new Date().toISOString();
+  taskHistory = pruneTaskHistory([{ ...task, archivedAt }, ...taskHistory]).slice(0, 200);
+  saveTaskHistory();
+};
+
+const completeAndArchiveTask = (task) => {
+  if (!task) return;
+  const completedAt = task.completedAt || new Date().toISOString();
+  const archived = { ...task, completed: true, completedAt };
+  archiveTask(archived);
+  tasks = tasks.filter((t) => t.id !== task.id);
+  saveTasks();
+  renderTasks();
+  updateCurrentTask();
+};
+
 const addTask = async () => {
   const description = elements.taskInput.value.trim();
   if (!description) return;
 
-  const deadlineDate = elements.taskDeadlineDate.value;
+  const deadlineDate = getDateValue();
   const deadlineTime = elements.taskDeadlineTime.value;
   
-  // Combine date and time into ISO string
   let deadline = null;
   if (deadlineDate) {
-    const timeStr = deadlineTime || "23:59";
+    const timeStr = deadlineTime ? getTimeValue() : "23:59";
     deadline = `${deadlineDate}T${timeStr}`;
   }
 
@@ -722,10 +781,16 @@ const addTask = async () => {
   try {
     const response = await apiRequest("/api/tasks", {
       method: "POST",
-      body: { description, type: taskType, deadline },
+      body: { title: description, description, type: taskType, deadline },
     });
     if (response.ok && response.data?.subtasks) {
-      // Could update task with subtasks if needed
+      const index = tasks.findIndex((task) => task.id === newTask.id);
+      if (index >= 0) {
+        tasks[index] = { ...tasks[index], subtasks: response.data.subtasks };
+        saveTasks();
+        renderTasks();
+        updateCurrentTask();
+      }
     }
   } catch (error) {
     // Silently fail, task is already added locally
@@ -812,13 +877,18 @@ const setTaskType = (type) => {
 const toggleTask = (taskId) => {
   const task = tasks.find((t) => t.id === taskId);
   if (task) {
-    task.completed = !task.completed;
-    if (task.completed) {
-      if (!task.status) task.status = "completed";
-      if (!task.completedAt) task.completedAt = new Date().toISOString();
-    } else {
-      task.completedAt = null;
+    if (!task.completed) {
+      const completedTask = {
+        ...task,
+        completed: true,
+        status: task.status || "completed",
+        completedAt: new Date().toISOString(),
+      };
+      completeAndArchiveTask(completedTask);
+      return;
     }
+    task.completed = false;
+    task.completedAt = null;
     saveTasks();
     renderTasks();
     updateCurrentTask();
@@ -876,8 +946,13 @@ const setTaskStatus = (status) => {
   
   activeTask.status = status;
   if (status === "completed") {
-    activeTask.completed = true;
-    activeTask.completedAt = new Date().toISOString();
+    const completedTask = {
+      ...activeTask,
+      completed: true,
+      completedAt: new Date().toISOString(),
+    };
+    completeAndArchiveTask(completedTask);
+    return;
   }
   
   saveTasks();
@@ -1219,6 +1294,7 @@ const init = async () => {
   loadTheme();
   loadPalette();
   loadTasks();
+  await loadTaskHistory();
   loadNotificationSettings();
   await loadTimerConfig();
   loadTimerState();
@@ -1508,6 +1584,7 @@ function selectHour(hour, element) {
   selectedTime.hour = hour;
   elements.hourScroll.querySelectorAll('.time-option').forEach(el => el.classList.remove('selected'));
   element.classList.add('selected');
+  element.scrollIntoView({ block: 'center' });
   updateTimeDisplay();
 }
 
@@ -1515,6 +1592,7 @@ function selectMinute(minute, element) {
   selectedTime.minute = minute;
   elements.minuteScroll.querySelectorAll('.time-option').forEach(el => el.classList.remove('selected'));
   element.classList.add('selected');
+  element.scrollIntoView({ block: 'center' });
   updateTimeDisplay();
 }
 
@@ -1522,13 +1600,67 @@ function selectPeriod(period, element) {
   selectedTime.period = period;
   elements.periodScroll.querySelectorAll('.time-option').forEach(el => el.classList.remove('selected'));
   element.classList.add('selected');
+  element.scrollIntoView({ block: 'center' });
   updateTimeDisplay();
+}
+
+function applyTimeSelection() {
+  const hourOption = elements.hourScroll.querySelector(`[data-value="${selectedTime.hour}"]`);
+  if (hourOption) {
+    elements.hourScroll.querySelectorAll('.time-option').forEach(el => el.classList.remove('selected'));
+    hourOption.classList.add('selected');
+    hourOption.scrollIntoView({ block: 'center' });
+  }
+  const minuteOption = elements.minuteScroll.querySelector(`[data-value="${selectedTime.minute}"]`);
+  if (minuteOption) {
+    elements.minuteScroll.querySelectorAll('.time-option').forEach(el => el.classList.remove('selected'));
+    minuteOption.classList.add('selected');
+    minuteOption.scrollIntoView({ block: 'center' });
+  }
+  const periodOption = elements.periodScroll.querySelector(`[data-value="${selectedTime.period}"]`);
+  if (periodOption) {
+    elements.periodScroll.querySelectorAll('.time-option').forEach(el => el.classList.remove('selected'));
+    periodOption.classList.add('selected');
+    periodOption.scrollIntoView({ block: 'center' });
+  }
 }
 
 function updateTimeDisplay() {
   const hourStr = selectedTime.hour.toString().padStart(2, '0');
   const minuteStr = selectedTime.minute.toString().padStart(2, '0');
   elements.taskDeadlineTime.value = `${hourStr}:${minuteStr} ${selectedTime.period}`;
+}
+
+function parseTimeInput(value) {
+  const trimmed = value.trim().toUpperCase();
+  if (!trimmed) return null;
+  const match = trimmed.match(/^(\d{1,2})(?::(\d{1,2}))?\s*(AM|PM)?$/);
+  if (!match) return null;
+  const rawHour = Number(match[1]);
+  const rawMinute = Number(match[2] || 0);
+  const period = match[3];
+  if (!Number.isFinite(rawHour) || !Number.isFinite(rawMinute)) return null;
+  if (rawMinute < 0 || rawMinute > 59) return null;
+  let hour = rawHour;
+  let resolvedPeriod = period;
+  if (period) {
+    if (rawHour < 1 || rawHour > 12) return null;
+    hour = rawHour;
+  } else if (rawHour >= 0 && rawHour <= 23) {
+    if (rawHour === 0) {
+      hour = 12;
+      resolvedPeriod = "AM";
+    } else if (rawHour > 12) {
+      hour = rawHour - 12;
+      resolvedPeriod = "PM";
+    } else {
+      hour = rawHour;
+      resolvedPeriod = rawHour === 12 ? "PM" : "AM";
+    }
+  } else {
+    return null;
+  }
+  return { hour, minute: rawMinute, period: resolvedPeriod };
 }
 
 function getTimeValue() {
@@ -1545,6 +1677,21 @@ function getTimeValue() {
 elements.taskDeadlineTime.addEventListener('click', () => {
   const isVisible = elements.timePickerDropdown.style.display === 'flex';
   elements.timePickerDropdown.style.display = isVisible ? 'none' : 'flex';
+  if (!isVisible) {
+    applyTimeSelection();
+  }
+});
+
+elements.taskDeadlineTime.addEventListener('input', () => {
+  const parsed = parseTimeInput(elements.taskDeadlineTime.value);
+  if (!parsed) return;
+  selectedTime = parsed;
+  applyTimeSelection();
+});
+
+elements.taskDeadlineTime.addEventListener('blur', () => {
+  if (!elements.taskDeadlineTime.value) return;
+  updateTimeDisplay();
 });
 
 // Close pickers when clicking outside

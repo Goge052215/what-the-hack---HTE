@@ -3,6 +3,7 @@ const elements = {
   themeToggle: document.getElementById("themeToggle"),
 };
 
+const TASK_HISTORY_RETENTION_DAYS = 30;
 let tasks = [];
 let currentPaletteId = "slate";
 
@@ -108,9 +109,18 @@ const toggleTheme = () => {
   chrome.storage.local.set({ theme: newTheme });
 };
 
+const pruneHistory = (items) => {
+  const cutoff = Date.now() - TASK_HISTORY_RETENTION_DAYS * 86400000;
+  return items.filter((task) => {
+    const stamp = new Date(task.completedAt || task.archivedAt || task.createdAt || Date.now()).getTime();
+    return stamp >= cutoff;
+  });
+};
+
 const loadTasks = () => {
-  chrome.storage.local.get(["tasks"], (result) => {
-    tasks = result.tasks || [];
+  chrome.storage.local.get(["taskHistory"], (result) => {
+    tasks = pruneHistory(Array.isArray(result.taskHistory) ? result.taskHistory : []);
+    chrome.storage.local.set({ taskHistory: tasks });
     renderHistory();
   });
 };
@@ -129,10 +139,9 @@ const formatDate = (isoString) => {
 };
 
 const renderHistory = () => {
-  const completedTasks = tasks.filter(t => t.completed).sort((a, b) => {
-    // Sort by completion time if available, otherwise by creation time (descending)
-    const dateA = new Date(a.completedAt || a.createdAt);
-    const dateB = new Date(b.completedAt || b.createdAt);
+  const completedTasks = tasks.slice().sort((a, b) => {
+    const dateA = new Date(a.completedAt || a.archivedAt || a.createdAt);
+    const dateB = new Date(b.completedAt || b.archivedAt || b.createdAt);
     return dateB - dateA;
   });
 

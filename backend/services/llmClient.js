@@ -1,3 +1,4 @@
+const { spawn } = require("child_process");
 const env = require("../config/env");
 
 const buildMinimaxHeaders = () => ({
@@ -55,6 +56,12 @@ const createMinimaxInsight = async (prompt) => {
 
 const createAnthropicInsight = async (prompt) => {
   if (!hasAnthropicKey()) return { ok: false, error: "missing_key" };
+  if (env.usePythonAnthropic) {
+    const pythonResult = await createAnthropicInsightPython(prompt);
+    if (pythonResult.ok && pythonResult.content) {
+      return pythonResult;
+    }
+  }
   const response = await fetch(`${env.anthropicBaseUrl}/v1/messages`, {
     method: "POST",
     headers: buildAnthropicHeaders(),
@@ -77,6 +84,78 @@ const createAnthropicInsight = async (prompt) => {
   const content = extractAnthropicContent(payload);
   if (!content) return { ok: false, error: "empty_response" };
   return { ok: true, content };
+};
+
+const createAnthropicInsightPython = async (prompt) => {
+  if (!hasAnthropicKey()) return { ok: false, error: "missing_key" };
+  const pythonScript = `
+import json, sys, os
+try:
+    import anthropic
+except Exception:
+    sys.stdout.write(json.dumps({"ok": False, "error": "missing_dependency"}))
+    sys.exit(0)
+payload = json.loads(sys.stdin.read() or "{}")
+api_key = os.getenv("ANTHROPIC_API_KEY")
+base_url = os.getenv("ANTHROPIC_BASE_URL")
+client = anthropic.Anthropic(api_key=api_key, base_url=base_url or None)
+message = client.messages.create(
+    model=payload.get("model") or "MiniMax-M2.5",
+    max_tokens=int(payload.get("max_tokens") or 220),
+    system=payload.get("system") or "You are a helpful assistant.",
+    messages=[{
+        "role": "user",
+        "content": [{"type": "text", "text": payload.get("prompt") or ""}]
+    }]
+)
+text_blocks = [block.text for block in message.content if getattr(block, "type", None) == "text" and getattr(block, "text", None)]
+content = "".join(text_blocks).strip()
+sys.stdout.write(json.dumps({"ok": True, "content": content}))
+`.trim();
+  return new Promise((resolve) => {
+    const proc = spawn(env.pythonPath, ["-c", pythonScript], {
+      env: {
+        ...process.env,
+        ANTHROPIC_API_KEY: env.anthropicKey,
+        ANTHROPIC_BASE_URL: env.anthropicBaseUrl,
+      },
+    });
+    let stdout = "";
+    let stderr = "";
+    proc.stdout.on("data", (chunk) => {
+      stdout += chunk.toString();
+    });
+    proc.stderr.on("data", (chunk) => {
+      stderr += chunk.toString();
+    });
+    proc.on("error", () => {
+      resolve({ ok: false, error: "python_failed" });
+    });
+    proc.on("close", () => {
+      if (stderr) {
+        resolve({ ok: false, error: "python_error" });
+        return;
+      }
+      try {
+        const parsed = JSON.parse(stdout || "{}");
+        if (parsed.ok && parsed.content) {
+          resolve({ ok: true, content: String(parsed.content).trim() });
+          return;
+        }
+        resolve({ ok: false, error: parsed.error || "invalid_response" });
+      } catch {
+        resolve({ ok: false, error: "invalid_response" });
+      }
+    });
+    const payload = {
+      prompt,
+      model: env.anthropicModel,
+      max_tokens: 220,
+      system: "You are a learning behavior analysis assistant.",
+    };
+    proc.stdin.write(JSON.stringify(payload));
+    proc.stdin.end();
+  });
 };
 
 const createInsight = async (prompt) => {
