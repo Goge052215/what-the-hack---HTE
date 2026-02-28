@@ -504,6 +504,21 @@ select {
   background: var(--accent-hover);
 }
 
+.time-picker-scroll,
+.compact-list,
+.task-list {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.time-picker-scroll::-webkit-scrollbar,
+.compact-list::-webkit-scrollbar,
+.task-list::-webkit-scrollbar {
+  width: 0;
+  height: 0;
+  display: none;
+}
+
 .time-option {
   padding: 8px 12px;
   text-align: center;
