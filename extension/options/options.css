@@ -1,0 +1,35 @@
+body {
+  margin: 0;
+  font-family: "Inter", "Segoe UI", sans-serif;
+  background: #0f172a;
+  color: #e2e8f0;
+}
+
+.layout {
+  display: grid;
+  gap: 8px;
+  padding: 24px;
+  max-width: 420px;
+}
+
+input {
+  border-radius: 6px;
+  border: 1px solid #334155;
+  padding: 8px;
+  background: #111827;
+  color: #e2e8f0;
+}
+
+button {
+  border: none;
+  border-radius: 6px;
+  background: #38bdf8;
+  color: #0f172a;
+  padding: 8px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+#status {
+  color: #94a3b8;
+}

@@ -1,0 +1,10 @@
+{
+  "type": "object",
+  "properties": {
+    "ok": { "type": "boolean" },
+    "data": { "type": "object" },
+    "error": { "type": "string" }
+  },
+  "required": ["ok"],
+  "additionalProperties": true
+}

@@ -1,0 +1,31 @@
+body {
+  margin: 0;
+  font-family: "Inter", "Segoe UI", sans-serif;
+  background: #0b1120;
+  color: #e2e8f0;
+}
+
+.layout {
+  padding: 24px;
+}
+
+h1 {
+  margin: 0 0 8px;
+}
+
+p {
+  color: #94a3b8;
+}
+
+.card {
+  margin-top: 16px;
+  padding: 16px;
+  border-radius: 12px;
+  background: #0f172a;
+  border: 1px solid #1e293b;
+}
+
+.card h2 {
+  margin: 0 0 8px;
+  font-size: 16px;
+}

@@ -1,0 +1,17 @@
+{
+  "manifest_version": 3,
+  "name": "Focus Tutor",
+  "version": "0.1.0",
+  "action": {
+    "default_title": "Focus Tutor",
+    "default_popup": "popup/popup.html"
+  },
+  "background": {
+    "service_worker": "background/serviceWorker.js"
+  },
+  "permissions": ["storage", "cookies", "activeTab", "tabs", "alarms", "notifications"],
+  "host_permissions": ["http://localhost:5174/*", "http://127.0.0.1:5174/*"],
+  "content_security_policy": {
+    "extension_pages": "script-src 'self'; object-src 'self'"
+  }
+}

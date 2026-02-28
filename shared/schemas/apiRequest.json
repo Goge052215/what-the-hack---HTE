@@ -1,0 +1,9 @@
+{
+  "type": "object",
+  "properties": {
+    "requestId": { "type": "string" },
+    "data": { "type": "object" }
+  },
+  "required": ["requestId", "data"],
+  "additionalProperties": true
+}
