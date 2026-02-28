@@ -1005,10 +1005,9 @@ const fetchAiSuggestions = async (task, force = false) => {
         },
       },
     });
-    const suggestions = response.data?.suggestions || response.suggestions;
-    if (Array.isArray(suggestions) && suggestions.length > 0) {
-      task.aiSuggestionSlots = suggestions.slice(0, 5);
-      task.aiSuggestionSource = response.data?.source || response.source || "minimax";
+    if (response.ok && Array.isArray(response.data?.suggestions)) {
+      task.aiSuggestionSlots = response.data.suggestions.slice(0, 5);
+      task.aiSuggestionSource = response.data?.source || "minimax";
       saveTasks();
       renderTasks();
       updateCurrentTask();

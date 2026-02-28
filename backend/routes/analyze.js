@@ -1,7 +1,7 @@
 const store = require("../storage");
 const { scoreRelevance } = require("../services/relevanceScorer");
 const { isNonEmptyString } = require("../../shared/utils/validation");
-const { createInsight, createScheduleSuggestions, createScheduleSuggestionsViaApi } = require("../services/llmClient");
+const { createInsight, createScheduleSuggestions } = require("../services/llmClient");
 const { startOfDay, getHour } = require("../../shared/utils/time");
 
 const MAX_GAP_MIN = 5;
@@ -346,7 +346,6 @@ const handleAnalyze = async (req, res, ctx) => {
     });
     const aiResponse = await createScheduleSuggestions(prompt);
     let suggestions = null;
-    let source = null;
     if (aiResponse.ok && aiResponse.content) {
       try {
         const cleaned = String(aiResponse.content)
@@ -369,37 +368,9 @@ const handleAnalyze = async (req, res, ctx) => {
                 Number.isFinite(item.durationMin) &&
                 item.durationMin > 0
             );
-          if (suggestions.length > 0) {
-            source = "minimax";
-          }
         }
       } catch {
         suggestions = null;
-      }
-    }
-    if (!suggestions || suggestions.length === 0) {
-      const apiResponse = await createScheduleSuggestionsViaApi({
-        description,
-        type: task?.type,
-        deadline: task?.deadline,
-      });
-      if (apiResponse.ok && Array.isArray(apiResponse.suggestions) && apiResponse.suggestions.length > 0) {
-        suggestions = apiResponse.suggestions
-          .map((item) => ({
-            title: typeof item?.title === "string" ? item.title.trim() : "",
-            start: typeof item?.start === "string" ? item.start.trim() : "",
-            durationMin: Number(item?.durationMin),
-          }))
-          .filter(
-            (item) =>
-              item.title &&
-              item.start &&
-              Number.isFinite(item.durationMin) &&
-              item.durationMin > 0
-          );
-        if (suggestions.length > 0) {
-          source = apiResponse.source || "api";
-        }
       }
     }
     const fallback = buildFallbackSlots({ type: task?.type, deadline: task?.deadline });
@@ -408,7 +379,7 @@ const handleAnalyze = async (req, res, ctx) => {
       ok: true,
       data: {
         suggestions: finalSuggestions,
-        source: suggestions && suggestions.length > 0 ? source || "minimax" : "fallback",
+        source: suggestions && suggestions.length > 0 ? "minimax" : "fallback",
       },
     });
   }
