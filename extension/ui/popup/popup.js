@@ -1001,18 +1001,6 @@ const deleteTask = (taskId) => {
   updateCurrentTask();
 };
 
-const renderTasks = () => {
-  const pendingTasks = tasks.filter(t => !t.completed);
-  
-  if (pendingTasks.length === 0) {
-    elements.subtasksStatus.style.display = "block";
-    elements.subtasksStatus.textContent = "No pending tasks";
-    elements.subtasksList.innerHTML = "";
-    return;
-  }
-
-  elements.subtasksStatus.style.display = "none";
-  elements.subtasksList.innerHTML = pendingTasks
 const renderTaskList = (listEl, items) => {
   listEl.innerHTML = items
     .map(
