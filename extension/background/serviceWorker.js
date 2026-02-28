@@ -3,6 +3,8 @@ const defaultApiBaseUrl = "http://localhost:5174";
 let focusStartTime = null;
 let lastTabId = null;
 let tabSwitchCount = 0;
+let breakStartTime = null;
+let breakDuration = 5 * 60 * 1000; // 5 minutes in milliseconds
 
 chrome.runtime.onInstalled.addListener(() => {
   chrome.storage.local.get(["apiBaseUrl"], (result) => {
@@ -200,7 +202,21 @@ chrome.notifications.onButtonClicked.addListener((notificationId, buttonIndex) =
     if (buttonIndex === 0) {
       // Take Break
       focusStartTime = null;
+      breakStartTime = Date.now();
       chrome.notifications.clear(notificationId);
+      
+      // Schedule return-to-work notification after break duration
+      setTimeout(() => {
+        if (breakStartTime) {
+          showNotification(
+            "return-to-work",
+            "🎯 Break's over!",
+            "Time to get back to work. You're refreshed and ready to focus!"
+          );
+          breakStartTime = null;
+        }
+      }, breakDuration);
+      
     } else if (buttonIndex === 1) {
       // Keep Working - reset timer
       focusStartTime = Date.now();
