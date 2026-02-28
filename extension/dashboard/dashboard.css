@@ -58,3 +58,17 @@ p {
   padding-left: 16px;
   color: #cbd5f5;
 }
+
+.insight {
+  margin-top: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.insight span {
+  color: #94a3b8;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
