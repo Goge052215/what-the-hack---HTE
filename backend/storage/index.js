@@ -57,6 +57,8 @@ const addAnalysis = (userId, result) => {
   return analysis;
 };
 
+const listAnalyses = (userId) => store.analyses.filter((item) => item.userId === userId);
+
 module.exports = {
   createSession,
   getSession,
@@ -68,4 +70,5 @@ module.exports = {
   listSchedules,
   addSchedule,
   addAnalysis,
+  listAnalyses,
 };

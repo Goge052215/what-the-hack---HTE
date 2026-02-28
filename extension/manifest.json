@@ -9,7 +9,7 @@
   "background": {
     "service_worker": "background/serviceWorker.js"
   },
-  "permissions": ["storage", "cookies", "activeTab", "tabs", "alarms", "notifications"],
+  "permissions": ["storage", "cookies", "activeTab", "tabs", "alarms", "notifications", "idle"],
   "host_permissions": ["http://localhost:5174/*", "http://127.0.0.1:5174/*"],
   "content_security_policy": {
     "extension_pages": "script-src 'self'; object-src 'self'"

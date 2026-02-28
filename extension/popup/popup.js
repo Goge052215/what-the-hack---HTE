@@ -67,6 +67,11 @@ const scoreContext = (context) => {
   return Math.max(0, Math.min(1, focusScore - distractionPenalty));
 };
 
+const saveLastFocusScore = (score) => {
+  if (typeof score !== "number") return;
+  chrome.storage.local.set({ lastFocusScore: score });
+};
+
 const buildTabContext = async () => {
   const tabs = await chrome.tabs.query({});
   const entries = tabs
@@ -75,6 +80,13 @@ const buildTabContext = async () => {
     .map((tab) => ({ title: tab.title || "Untitled", url: tab.url }));
   const context = entries.map((tab) => `${tab.title} - ${tab.url}`).join(" | ");
   return { context, count: entries.length, entries };
+};
+
+const loadCurrentGoal = async () => {
+  const response = await apiRequest("/api/tasks");
+  if (!response.ok || !Array.isArray(response.data)) return "";
+  const latest = response.data.slice().sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0))[0];
+  return latest?.title ? String(latest.title) : "";
 };
 
 const analyzeTabs = async () => {
@@ -90,21 +102,25 @@ const analyzeTabs = async () => {
   elements.analysisStatus.textContent = "Analyzing...";
   elements.analysisMeta.textContent = `Tabs analyzed: ${count}`;
   try {
-    const response = await apiRequest("/api/analyze", { method: "POST", body: { context } });
+    const goal = await loadCurrentGoal();
+    const response = await apiRequest("/api/analyze", { method: "POST", body: { context, goal } });
     if (!response.ok) {
       const score = scoreContext(context);
       elements.analysisStatus.textContent = "Local analysis";
       elements.analysisScore.textContent = `Focus score: ${score.toFixed(2)}`;
+      saveLastFocusScore(score);
       return;
     }
     const score = response.data?.score;
     elements.analysisStatus.textContent = "Analysis complete";
     elements.analysisScore.textContent =
       typeof score === "number" ? `Focus score: ${score.toFixed(2)}` : "Focus score: --";
+    saveLastFocusScore(score);
   } catch {
     const score = scoreContext(context);
     elements.analysisStatus.textContent = "Local analysis";
     elements.analysisScore.textContent = `Focus score: ${score.toFixed(2)}`;
+    saveLastFocusScore(score);
   }
 };
 
