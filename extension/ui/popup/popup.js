@@ -1,4 +1,4 @@
-import { apiRequest, getApiBaseUrl, setApiBaseUrl } from "../ui/api/client.js";
+import { apiRequest, getApiBaseUrl, setApiBaseUrl } from "../api/client.js";
 
 const elements = {
   apiBaseUrl: document.getElementById("apiBaseUrl"),
@@ -23,6 +23,7 @@ const elements = {
   analysisList: document.getElementById("analysisList"),
   lightThemeBtn: document.getElementById("lightThemeBtn"),
   darkThemeBtn: document.getElementById("darkThemeBtn"),
+  openDashboardBtn: document.getElementById("openDashboardBtn"),
   settingsBtn: document.getElementById("settingsBtn"),
   taskListBtn: document.getElementById("taskListBtn"),
   taskCount: document.getElementById("taskCount"),
@@ -479,6 +480,10 @@ elements.lightThemeBtn.addEventListener("click", () => {
 
 elements.darkThemeBtn.addEventListener("click", () => {
   setTheme("dark");
+});
+
+elements.openDashboardBtn.addEventListener("click", () => {
+  chrome.tabs.create({ url: chrome.runtime.getURL("ui/dashboard/dashboard.html") });
 });
 
 elements.settingsBtn.addEventListener("click", () => {

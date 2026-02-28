@@ -1,4 +1,4 @@
-import { apiRequest } from "../ui/api/client.js";
+import { apiRequest } from "../api/client.js";
 
 const elements = {
   summary: document.getElementById("summary"),
