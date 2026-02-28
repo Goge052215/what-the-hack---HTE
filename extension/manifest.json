@@ -4,7 +4,7 @@
   "version": "0.1.0",
   "action": {
     "default_title": "Focus Tutor",
-    "default_popup": "popup/popup.html"
+    "default_popup": "ui/popup/popup.html"
   },
   "background": {
     "service_worker": "background/serviceWorker.js"
