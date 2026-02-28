@@ -50,7 +50,56 @@
       </section>
 
       <section class="card">
-        <h2>Productivity Insights</h2>
+        <h2>Behavioral Analytics</h2>
+        <div class="analytics-grid">
+          <div class="analytics-item">
+            <h3>Time Distribution</h3>
+            <div class="distribution-chart">
+              <div class="distribution-bar">
+                <div id="studyBar" class="bar-segment study" style="width: 50%"></div>
+                <div id="entertainmentBar" class="bar-segment entertainment" style="width: 50%"></div>
+              </div>
+              <div class="distribution-legend">
+                <span class="legend-item"><span class="dot study"></span>Study (<span id="studyTime">0h</span>)</span>
+                <span class="legend-item"><span class="dot entertainment"></span>Entertainment (<span id="entertainmentTime">0h</span>)</span>
+              </div>
+            </div>
+          </div>
+          <div class="analytics-item">
+            <h3>Peak Productivity</h3>
+            <div class="peak-time-display">
+              <span class="peak-icon">⚡</span>
+              <div class="peak-details">
+                <span class="peak-label">Golden Hours</span>
+                <span id="peakHours" class="peak-value">Calculating...</span>
+              </div>
+            </div>
+            <p class="recommendation" id="scheduleRecommendation">Gathering data to recommend schedule...</p>
+          </div>
+        </div>
+      </section>
+
+      <section class="card">
+        <h2>Fatigue Monitor</h2>
+        <div class="fatigue-status">
+          <div class="status-indicator">
+            <span id="fatigueStatusIcon" class="status-icon">🟢</span>
+            <span id="fatigueStatusText" class="status-text">Fresh & Ready</span>
+          </div>
+          <div class="fatigue-details">
+            <p>Current Session: <span id="currentSessionTime">0m</span></p>
+            <p id="breakRecommendation">No break needed yet.</p>
+          </div>
+        </div>
+        <div class="recovery-prediction">
+          <span class="prediction-label">Estimated Recovery Efficiency:</span>
+          <div class="efficiency-bar-container">
+            <div id="recoveryEfficiencyBar" class="efficiency-bar" style="width: 100%"></div>
+          </div>
+        </div>
+      </section>
+
+      <section class="card">
         <div class="insights-grid">
           <div class="insight-item">
             <span class="insight-label">Tasks Completed</span>

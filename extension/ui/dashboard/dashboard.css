@@ -13,6 +13,8 @@
   --success: #a8c8b5;
   --warning: #c8b8a8;
   --error: #c8a8a8;
+  --study-color: #7b9acc;
+  --entertainment-color: #e09f9f;
 }
 
 body.dark-theme {
@@ -30,6 +32,8 @@ body.dark-theme {
   --success: #8fa89c;
   --warning: #a89c8f;
   --error: #a88f8f;
+  --study-color: #5a7ab0;
+  --entertainment-color: #c07f7f;
 }
 
 * {
@@ -112,6 +116,13 @@ p {
   font-weight: 600;
   color: var(--accent);
   letter-spacing: -0.3px;
+}
+
+.card h3 {
+  margin: 0 0 10px;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-secondary);
 }
 
 .task-input-group {
@@ -358,4 +369,167 @@ p {
 .chart-bar:hover {
   opacity: 1;
   transform: translateY(-2px);
+}
+
+/* New Styles for Behavioral Analytics & Fatigue Monitor */
+
+.analytics-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 16px;
+}
+
+.analytics-item {
+  padding: 16px;
+  background: var(--bg-tertiary);
+  border-radius: 10px;
+  border: 1px solid var(--border);
+}
+
+.distribution-chart {
+  margin-top: 10px;
+}
+
+.distribution-bar {
+  height: 20px;
+  border-radius: 10px;
+  background: var(--bg-secondary);
+  display: flex;
+  overflow: hidden;
+  margin-bottom: 12px;
+}
+
+.bar-segment {
+  height: 100%;
+  transition: width 0.3s ease;
+}
+
+.bar-segment.study {
+  background-color: var(--study-color);
+}
+
+.bar-segment.entertainment {
+  background-color: var(--entertainment-color);
+}
+
+.distribution-legend {
+  display: flex;
+  justify-content: space-between;
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.legend-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  display: inline-block;
+}
+
+.dot.study {
+  background-color: var(--study-color);
+}
+
+.dot.entertainment {
+  background-color: var(--entertainment-color);
+}
+
+.peak-time-display {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+
+.peak-icon {
+  font-size: 24px;
+}
+
+.peak-details {
+  display: flex;
+  flex-direction: column;
+}
+
+.peak-label {
+  font-size: 11px;
+  color: var(--text-tertiary);
+  text-transform: uppercase;
+}
+
+.peak-value {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--accent);
+}
+
+.recommendation {
+  font-size: 12px;
+  color: var(--text-secondary);
+  font-style: italic;
+}
+
+.fatigue-status {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 16px;
+  padding: 12px;
+  background: var(--bg-tertiary);
+  border-radius: 10px;
+  border: 1px solid var(--border);
+}
+
+.status-indicator {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.status-icon {
+  font-size: 20px;
+}
+
+.status-text {
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.fatigue-details {
+  flex: 1;
+  text-align: right;
+}
+
+.fatigue-details p {
+  margin: 2px 0;
+}
+
+.recovery-prediction {
+  margin-top: 12px;
+}
+
+.prediction-label {
+  display: block;
+  font-size: 12px;
+  color: var(--text-secondary);
+  margin-bottom: 6px;
+}
+
+.efficiency-bar-container {
+  height: 6px;
+  background: var(--bg-secondary);
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.efficiency-bar {
+  height: 100%;
+  background: linear-gradient(90deg, var(--error), var(--warning), var(--success));
+  width: 100%;
+  transition: width 0.5s ease;
 }
