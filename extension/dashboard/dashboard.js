@@ -14,9 +14,34 @@ const elements = {
   focusTime: document.getElementById("focusTime"),
   breakTime: document.getElementById("breakTime"),
   productivityScore: document.getElementById("productivityScore"),
+  themeToggle: document.getElementById("themeToggle"),
 };
 
 let tasks = [];
+
+const loadTheme = () => {
+  chrome.storage.local.get(["theme"], (result) => {
+    const theme = result.theme || "light";
+    applyTheme(theme);
+  });
+};
+
+const applyTheme = (theme) => {
+  if (theme === "dark") {
+    document.body.classList.add("dark-theme");
+    elements.themeToggle.textContent = "🌙";
+  } else {
+    document.body.classList.remove("dark-theme");
+    elements.themeToggle.textContent = "☀️";
+  }
+};
+
+const toggleTheme = () => {
+  const isDark = document.body.classList.contains("dark-theme");
+  const newTheme = isDark ? "light" : "dark";
+  applyTheme(newTheme);
+  chrome.storage.local.set({ theme: newTheme });
+};
 
 const loadTasks = async () => {
   const response = await apiRequest("/api/tasks");
@@ -185,6 +210,7 @@ const analyzeTabs = async () => {
 };
 
 const init = async () => {
+  loadTheme();
   await loadTasks();
   await analyzeTabs();
   setInterval(analyzeTabs, 30000);
@@ -196,5 +222,6 @@ elements.newTaskInput.addEventListener("keypress", (e) => {
     addTask();
   }
 });
+elements.themeToggle.addEventListener("click", toggleTheme);
 
 init();

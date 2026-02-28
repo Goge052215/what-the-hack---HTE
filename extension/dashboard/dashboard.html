@@ -3,14 +3,22 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Quicksand:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
     <link rel="stylesheet" href="dashboard.css" />
     <title>Focus Tutor Dashboard</title>
   </head>
   <body>
     <main class="layout">
       <header class="dashboard-header">
-        <h1>Focus Tutor Dashboard</h1>
-        <p id="summary">Loading...</p>
+        <div class="header-top">
+          <div>
+            <h1>Focus Tutor Dashboard</h1>
+            <p id="summary">Loading...</p>
+          </div>
+          <button id="themeToggle" class="theme-toggle" aria-label="Toggle theme">☀️</button>
+        </div>
       </header>
 
       <section class="card">

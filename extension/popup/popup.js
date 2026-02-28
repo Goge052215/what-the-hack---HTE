@@ -13,6 +13,31 @@ const elements = {
   analysisScore: document.getElementById("analysisScore"),
   analysisMeta: document.getElementById("analysisMeta"),
   analysisList: document.getElementById("analysisList"),
+  themeToggle: document.getElementById("themeToggle"),
+};
+
+const loadTheme = () => {
+  chrome.storage.local.get(["theme"], (result) => {
+    const theme = result.theme || "light";
+    applyTheme(theme);
+  });
+};
+
+const applyTheme = (theme) => {
+  if (theme === "dark") {
+    document.body.classList.add("dark-theme");
+    elements.themeToggle.textContent = "🌙";
+  } else {
+    document.body.classList.remove("dark-theme");
+    elements.themeToggle.textContent = "☀️";
+  }
+};
+
+const toggleTheme = () => {
+  const isDark = document.body.classList.contains("dark-theme");
+  const newTheme = isDark ? "light" : "dark";
+  applyTheme(newTheme);
+  chrome.storage.local.set({ theme: newTheme });
 };
 
 const renderStatus = () => {
@@ -114,6 +139,7 @@ const analyzeTabs = async () => {
 };
 
 const init = async () => {
+  loadTheme();
   const baseUrl = await ensureApiBaseUrl();
   elements.apiBaseUrl.value = baseUrl;
   renderStatus();
@@ -186,6 +212,8 @@ elements.taskInput.addEventListener("keypress", (e) => {
     splitTask();
   }
 });
+
+elements.themeToggle.addEventListener("click", toggleTheme);
 
 /*
 elements.login.addEventListener("click", async () => {});
