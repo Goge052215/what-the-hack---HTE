@@ -57,8 +57,38 @@
         
         <label for="taskDeadlineDate">Deadline</label>
         <div class="deadline-inputs">
-          <input id="taskDeadlineDate" type="date" placeholder="Select date" />
-          <input id="taskDeadlineTime" type="time" placeholder="Select time" />
+          <div class="custom-date-picker">
+            <input id="taskDeadlineDate" type="text" readonly placeholder="mm/dd/yyyy" />
+            <span class="input-icon">📅</span>
+            <div id="datePickerDropdown" class="date-picker-dropdown" style="display: none;">
+              <div class="calendar-header">
+                <button type="button" class="calendar-nav" id="prevMonth">◀</button>
+                <div class="calendar-month" id="currentMonth">Month Year</div>
+                <button type="button" class="calendar-nav" id="nextMonth">▶</button>
+              </div>
+              <div class="calendar-grid">
+                <div class="calendar-weekdays">
+                  <div>S</div><div>M</div><div>T</div><div>W</div><div>T</div><div>F</div><div>S</div>
+                </div>
+                <div class="calendar-days" id="calendarDays"></div>
+              </div>
+            </div>
+          </div>
+          <div class="custom-time-picker">
+            <input id="taskDeadlineTime" type="text" readonly placeholder="--:-- --" />
+            <span class="input-icon">🕐</span>
+            <div id="timePickerDropdown" class="time-picker-dropdown" style="display: none;">
+              <div class="time-picker-column">
+                <div class="time-picker-scroll" id="hourScroll"></div>
+              </div>
+              <div class="time-picker-column">
+                <div class="time-picker-scroll" id="minuteScroll"></div>
+              </div>
+              <div class="time-picker-column">
+                <div class="time-picker-scroll" id="periodScroll"></div>
+              </div>
+            </div>
+          </div>
         </div>
         
         <!-- Google Calendar integration - Only works after Chrome Web Store publication -->
@@ -131,6 +161,47 @@
             </div>
           </div>
           
+          <!-- Timer Row -->
+          <div class="accordion-item">
+            <button class="accordion-header" data-section="timer">
+              <span>⏱️ Focus Timer</span>
+              <span class="accordion-icon">▼</span>
+            </button>
+            <div class="accordion-content" data-section="timer">
+              <label>Timer Mode</label>
+              <div class="timer-mode-selector">
+                <button id="pomodoroModeBtn" class="timer-mode-option active" data-mode="pomodoro">🍅 Pomodoro</button>
+                <button id="customModeBtn" class="timer-mode-option" data-mode="custom">⚙️ Custom</button>
+              </div>
+              
+              <div id="pomodoroSettings" class="timer-settings">
+                <div class="setting-row">
+                  <label for="pomodoroFocus">Focus Duration (minutes)</label>
+                  <input id="pomodoroFocus" type="number" min="1" max="60" value="25" />
+                </div>
+                <div class="setting-row">
+                  <label for="pomodoroBreak">Short Break (minutes)</label>
+                  <input id="pomodoroBreak" type="number" min="1" max="30" value="5" />
+                </div>
+                <div class="setting-row">
+                  <label for="pomodoroLongBreak">Long Break (minutes)</label>
+                  <input id="pomodoroLongBreak" type="number" min="1" max="60" value="15" />
+                </div>
+              </div>
+              
+              <div id="customSettings" class="timer-settings" style="display: none;">
+                <div class="setting-row">
+                  <label for="customFocus">Focus Duration (minutes)</label>
+                  <input id="customFocus" type="number" min="1" max="180" value="45" />
+                </div>
+                <div class="setting-row">
+                  <label for="customBreak">Break Duration (minutes)</label>
+                  <input id="customBreak" type="number" min="1" max="60" value="10" />
+                </div>
+              </div>
+            </div>
+          </div>
+          
           <!-- Style Row -->
           <div class="accordion-item">
             <button class="accordion-header" data-section="style">
@@ -143,6 +214,24 @@
                 <button id="lightThemeBtn" class="theme-option">☀️ Light</button>
                 <button id="darkThemeBtn" class="theme-option">🌙 Dark</button>
                 <button id="autoThemeBtn" class="theme-option">🌗 Auto</button>
+              </div>
+              
+              <div class="divider"></div>
+              
+              <label>Color Palette</label>
+              <div class="palette-selector">
+                <button class="palette-dot-btn" data-palette="slate" style="background: #a8b5c8;" title="Slate"></button>
+                <button class="palette-dot-btn" data-palette="ocean" style="background: #4f8bd6;" title="Ocean"></button>
+                <button class="palette-dot-btn" data-palette="lavender" style="background: #9b7ad9;" title="Lavender"></button>
+                <button class="palette-dot-btn" data-palette="mint" style="background: #3aa97a;" title="Mint"></button>
+                <button class="palette-dot-btn" data-palette="sunset" style="background: #e07b5f;" title="Sunset"></button>
+                <button id="customColorBtn" class="palette-dot-btn custom-color-btn" title="Custom Color">+</button>
+              </div>
+              
+              <div id="colorPickerPanel" class="color-picker-panel" style="display: none;">
+                <label>Choose Your Color</label>
+                <input id="colorPicker" type="color" value="#a8b5c8" />
+                <button id="applyCustomColor" class="apply-color-btn">Apply Color</button>
               </div>
             </div>
           </div>
@@ -184,6 +273,19 @@
         <div id="subtasksContainer">
           <p id="subtasksStatus">No tasks yet</p>
           <ul id="subtasksList" class="task-list"></ul>
+        </div>
+      </div>
+
+      <!-- Focus Timer (always visible at bottom) -->
+      <div class="focus-timer">
+        <div class="timer-display">
+          <span id="timerMode" class="timer-mode">Focus</span>
+          <span id="timerTime" class="timer-time">25:00</span>
+        </div>
+        <div class="timer-controls">
+          <button id="timerStartBtn" class="timer-btn">▶</button>
+          <button id="timerPauseBtn" class="timer-btn" style="display: none;">⏸</button>
+          <button id="timerResetBtn" class="timer-btn">↻</button>
         </div>
       </div>
     </main>

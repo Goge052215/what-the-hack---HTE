@@ -148,6 +148,34 @@
       </section>
 
       <section class="card">
+        <h2>Focus Timer Sessions</h2>
+        <div class="timer-summary">
+          <div class="timer-stat">
+            <span class="stat-label">Today's Focus Time</span>
+            <span id="todayFocusTime" class="stat-value">0h 0m</span>
+          </div>
+          <div class="timer-stat">
+            <span class="stat-label">Sessions Completed</span>
+            <span id="sessionsCompleted" class="stat-value">0</span>
+          </div>
+          <div class="timer-stat">
+            <span class="stat-label">Avg Session Length</span>
+            <span id="avgSessionLength" class="stat-value">--</span>
+          </div>
+        </div>
+        
+        <h3 class="section-subtitle">Recent Sessions</h3>
+        <div id="sessionHistory" class="session-history">
+          <p class="placeholder-text">No sessions yet. Start a focus timer to track your productivity!</p>
+        </div>
+        
+        <div id="aiInsights" class="ai-insights" style="display: none;">
+          <h3 class="section-subtitle">🤖 AI Learning Insights</h3>
+          <p id="aiInsightText" class="ai-insight-text">Analyzing your focus patterns...</p>
+        </div>
+      </section>
+
+      <section class="card">
         <h2>Habit Patterns</h2>
         <p class="placeholder-text">Habit visualization will appear here once you've used Focus Tutor for a few days.</p>
         <div id="habitChart" class="habit-chart-placeholder">

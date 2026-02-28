@@ -13,14 +13,9 @@
 }
 
 body.dark-theme {
-  --bg-primary: #2a2a2e;
-  --bg-secondary: #35353a;
-  --bg-tertiary: #404046;
   --text-primary: #d4d4d8;
   --text-secondary: #a8a8b0;
   --text-tertiary: #7a7a82;
-  --accent: #9ca8ba;
-  --accent-hover: #b4bfce;
   --border: #4a4a50;
   --shadow: rgba(0, 0, 0, 0.2);
   --input-bg: #35353a;
@@ -320,9 +315,211 @@ body {
   margin-bottom: 12px;
 }
 
-#taskDeadlineDate,
-#taskDeadlineTime {
+.custom-date-picker,
+.custom-time-picker {
   flex: 1;
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.input-icon {
+  position: absolute;
+  right: 12px;
+  font-size: 16px;
+  pointer-events: none;
+  opacity: 0.6;
+}
+
+.date-picker-dropdown {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  background: var(--input-bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  box-shadow: 0 4px 12px var(--shadow);
+  z-index: 1000;
+  padding: 12px;
+  min-width: 280px;
+}
+
+.calendar-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+  gap: 8px;
+}
+
+.calendar-nav {
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  font-size: 14px;
+  color: var(--text-primary);
+  transition: all 0.2s ease;
+  padding: 0;
+}
+
+.calendar-nav:hover {
+  background: var(--accent);
+  color: white;
+  border-color: var(--accent);
+}
+
+.calendar-month {
+  flex: 1;
+  text-align: center;
+  font-family: 'Quicksand', sans-serif;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.calendar-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.calendar-weekdays {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 4px;
+  margin-bottom: 4px;
+}
+
+.calendar-weekdays div {
+  text-align: center;
+  font-family: 'Quicksand', sans-serif;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  padding: 4px;
+}
+
+.calendar-days {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 4px;
+}
+
+.calendar-day {
+  aspect-ratio: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 6px;
+  font-family: 'Quicksand', sans-serif;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-primary);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  user-select: none;
+}
+
+.calendar-day:hover {
+  background: var(--bg-tertiary);
+}
+
+.calendar-day.other-month {
+  color: var(--text-tertiary);
+  opacity: 0.5;
+}
+
+.calendar-day.today {
+  border: 2px solid var(--accent);
+}
+
+.calendar-day.selected {
+  background: var(--accent);
+  color: white;
+}
+
+.calendar-day.disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
+.time-picker-dropdown {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  background: var(--input-bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  box-shadow: 0 4px 12px var(--shadow);
+  z-index: 1000;
+  display: flex;
+  gap: 4px;
+  padding: 8px;
+  max-height: 180px;
+}
+
+.time-picker-column {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.time-picker-scroll {
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: var(--accent) var(--bg-tertiary);
+}
+
+.time-picker-scroll::-webkit-scrollbar {
+  width: 6px;
+}
+
+.time-picker-scroll::-webkit-scrollbar-track {
+  background: var(--bg-tertiary);
+  border-radius: 3px;
+}
+
+.time-picker-scroll::-webkit-scrollbar-thumb {
+  background: var(--accent);
+  border-radius: 3px;
+}
+
+.time-picker-scroll::-webkit-scrollbar-thumb:hover {
+  background: var(--accent-hover);
+}
+
+.time-option {
+  padding: 8px 12px;
+  text-align: center;
+  cursor: pointer;
+  border-radius: 6px;
+  font-family: 'Quicksand', sans-serif;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-primary);
+  transition: all 0.2s ease;
+  user-select: none;
+}
+
+.time-option:hover {
+  background: var(--bg-tertiary);
+}
+
+.time-option.selected {
+  background: var(--accent);
+  color: white;
+}
+
+#taskDeadlineDate {
+  width: 100%;
   padding: 10px 12px;
   border-radius: 8px;
   border: 1px solid var(--border);
@@ -330,9 +527,71 @@ body {
   color: var(--text-primary);
   font-family: 'Quicksand', sans-serif;
   font-size: 12px;
-  font-weight: 500;
+  font-weight: 600;
   transition: all 0.2s ease;
   cursor: pointer;
+  accent-color: var(--accent);
+  color-scheme: light;
+}
+
+.dark-theme #taskDeadlineDate {
+  color-scheme: dark;
+}
+
+#taskDeadlineTime {
+  width: 100%;
+  padding: 10px 12px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--input-bg);
+  color: var(--text-primary);
+  font-family: 'Quicksand', sans-serif;
+  font-size: 12px;
+  font-weight: 600;
+  transition: all 0.2s ease;
+  cursor: pointer;
+  user-select: none;
+}
+
+#taskDeadlineTime:hover,
+#taskDeadlineDate:hover {
+  border-color: var(--accent);
+}
+
+#taskDeadlineTime:focus,
+#taskDeadlineDate:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--shadow);
+}
+
+/* Ensure date and time text uses the same color */
+#taskDeadlineDate::-webkit-datetime-edit,
+#taskDeadlineTime::-webkit-datetime-edit {
+  color: var(--text-primary);
+  font-family: 'Quicksand', sans-serif;
+  font-weight: 600;
+}
+
+#taskDeadlineDate::-webkit-datetime-edit-fields-wrapper,
+#taskDeadlineTime::-webkit-datetime-edit-fields-wrapper {
+  color: var(--text-primary);
+}
+
+#taskDeadlineDate::-webkit-datetime-edit-text,
+#taskDeadlineTime::-webkit-datetime-edit-text {
+  color: var(--text-secondary);
+}
+
+#taskDeadlineDate::-webkit-datetime-edit-month-field,
+#taskDeadlineDate::-webkit-datetime-edit-day-field,
+#taskDeadlineDate::-webkit-datetime-edit-year-field,
+#taskDeadlineTime::-webkit-datetime-edit-hour-field,
+#taskDeadlineTime::-webkit-datetime-edit-minute-field,
+#taskDeadlineTime::-webkit-datetime-edit-ampm-field {
+  color: var(--text-primary);
+  font-family: 'Quicksand', sans-serif;
+  font-weight: 600;
 }
 
 #taskDeadlineDate:hover,
@@ -354,18 +613,43 @@ body {
   border-radius: 4px;
   padding: 4px;
   transition: all 0.2s ease;
-  filter: invert(0.5);
+  opacity: 0.7;
+  filter: brightness(0) saturate(100%) invert(58%) sepia(12%) saturate(701%) hue-rotate(182deg) brightness(93%) contrast(88%);
 }
 
 #taskDeadlineDate::-webkit-calendar-picker-indicator:hover,
 #taskDeadlineTime::-webkit-calendar-picker-indicator:hover {
   background: var(--bg-tertiary);
+  opacity: 1;
+  transform: scale(1.1);
 }
 
 /* Dark theme icons */
 .dark-theme #taskDeadlineDate::-webkit-calendar-picker-indicator,
 .dark-theme #taskDeadlineTime::-webkit-calendar-picker-indicator {
-  filter: invert(0.8);
+  filter: brightness(0) saturate(100%) invert(73%) sepia(8%) saturate(638%) hue-rotate(182deg) brightness(92%) contrast(89%);
+  opacity: 0.8;
+}
+
+/* Customize the time picker appearance */
+#taskDeadlineTime::-webkit-datetime-edit-hour-field:focus,
+#taskDeadlineTime::-webkit-datetime-edit-minute-field:focus,
+#taskDeadlineTime::-webkit-datetime-edit-ampm-field:focus,
+#taskDeadlineDate::-webkit-datetime-edit-month-field:focus,
+#taskDeadlineDate::-webkit-datetime-edit-day-field:focus,
+#taskDeadlineDate::-webkit-datetime-edit-year-field:focus {
+  background: var(--accent);
+  color: white;
+  border-radius: 4px;
+  outline: none;
+}
+
+/* Style for selected state */
+#taskDeadlineTime::-webkit-datetime-edit-hour-field[aria-selected="true"],
+#taskDeadlineTime::-webkit-datetime-edit-minute-field[aria-selected="true"],
+#taskDeadlineTime::-webkit-datetime-edit-ampm-field[aria-selected="true"] {
+  background: var(--accent);
+  color: white;
 }
 
 .calendar-option {
@@ -553,6 +837,106 @@ input:focus {
   background: var(--accent);
   color: white;
   border-color: var(--accent);
+}
+
+.palette-selector {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 12px;
+  justify-content: flex-start;
+}
+
+.palette-dot-btn {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: 2px solid var(--border);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  padding: 0;
+  box-shadow: 0 2px 4px var(--shadow);
+}
+
+.palette-dot-btn:hover {
+  transform: scale(1.15);
+  box-shadow: 0 4px 8px var(--shadow);
+}
+
+.palette-dot-btn.active {
+  border: 3px solid var(--text-primary);
+  transform: scale(1.2);
+  box-shadow: 0 0 0 2px var(--bg-primary), 0 4px 8px var(--shadow);
+}
+
+.custom-color-btn {
+  background: linear-gradient(135deg, #ff6b6b, #4ecdc4, #45b7d1, #f7b731, #5f27cd);
+  color: white;
+  font-size: 18px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.color-picker-panel {
+  margin-top: 12px;
+  padding: 12px;
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.color-picker-panel label {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  margin-bottom: 0;
+}
+
+#colorPicker {
+  width: 100%;
+  height: 50px;
+  border: 2px solid var(--border);
+  border-radius: 8px;
+  cursor: pointer;
+  padding: 4px;
+  background: var(--input-bg);
+}
+
+#colorPicker::-webkit-color-swatch-wrapper {
+  padding: 0;
+}
+
+#colorPicker::-webkit-color-swatch {
+  border: none;
+  border-radius: 6px;
+}
+
+.apply-color-btn {
+  width: 100%;
+  padding: 10px 12px;
+  border: none;
+  border-radius: 8px;
+  background: var(--accent);
+  color: white;
+  font-family: 'Quicksand', sans-serif;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.apply-color-btn:hover {
+  background: var(--accent-hover);
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px var(--shadow);
+}
+
+.apply-color-btn:active {
+  transform: translateY(0);
 }
 
 #saveApiBaseUrl {
@@ -814,4 +1198,116 @@ input:focus {
   outline: none;
   border-color: var(--accent);
   box-shadow: 0 0 0 3px var(--shadow);
+}
+
+/* Focus Timer */
+.focus-timer {
+  margin-top: 12px;
+  padding: 10px 12px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+}
+
+.timer-display {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1;
+}
+
+.timer-mode {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.timer-mode.focus {
+  color: var(--accent);
+}
+
+.timer-mode.rest {
+  color: var(--success);
+}
+
+.timer-time {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--text-primary);
+  font-variant-numeric: tabular-nums;
+  min-width: 60px;
+}
+
+.timer-controls {
+  display: flex;
+  gap: 6px;
+}
+
+.timer-btn {
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  font-size: 14px;
+  transition: all 0.2s ease;
+  padding: 0;
+}
+
+.timer-btn:hover {
+  background: var(--accent);
+  color: white;
+  border-color: var(--accent);
+  transform: translateY(-1px);
+}
+
+.timer-btn:active {
+  transform: translateY(0);
+}
+
+.timer-mode-selector {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.timer-mode-option {
+  flex: 1;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg-tertiary);
+  color: var(--text-primary);
+  font-family: 'Quicksand', sans-serif;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.timer-mode-option:hover {
+  border-color: var(--accent);
+  background: var(--bg-secondary);
+}
+
+.timer-mode-option.active {
+  background: var(--accent);
+  color: white;
+  border-color: var(--accent);
+}
+
+.timer-settings {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
 }
