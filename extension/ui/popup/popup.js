@@ -2081,6 +2081,9 @@ function initializeTimePicker() {
     option.addEventListener('click', () => selectPeriod(period, option));
     elements.periodScroll.appendChild(option);
   });
+  
+  // Set initial display value
+  updateTimeDisplay();
 }
 
 function selectHour(hour, element) {
