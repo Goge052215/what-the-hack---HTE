@@ -1,6 +1,7 @@
 const store = require("../storage");
 const { scoreRelevance } = require("../services/relevanceScorer");
 const { isNonEmptyString } = require("../../shared/utils/validation");
+const { createInsight } = require("../services/llmClient");
 const { startOfDay, getHour } = require("../../shared/utils/time");
 
 const MAX_GAP_MIN = 5;
@@ -114,7 +115,71 @@ const buildDailyReport = (analyses, dayStartMs, dayEndMs) => {
   };
 };
 
-const handleAnalyze = (req, res, ctx) => {
+const computeInsightFallback = (report) => {
+  if (!report || !Array.isArray(report.efficiencyDistribution)) {
+    return "Today's learning insight: Not enough data yet. Keep logging sessions for sharper recommendations.";
+  }
+  const distribution = report.efficiencyDistribution;
+  if (distribution.length === 0 || !report.trackedMinutes) {
+    return "Today's learning insight: Limited activity logged. Track more focused time blocks to reveal your efficiency curve.";
+  }
+  const peak = distribution.reduce((best, entry) =>
+    entry.focusRatio > best.focusRatio ? entry : best
+  );
+  const peakHour = Number.isFinite(peak?.hour) ? peak.hour : null;
+  const peakLabel =
+    peakHour === null
+      ? "peak hours"
+      : `${String(peakHour).padStart(2, "0")}–${String((peakHour + 1) % 24).padStart(
+          2,
+          "0"
+        )}`;
+  const afterCut = distribution.filter((entry) => entry.hour >= 15);
+  const beforeCut = distribution.filter((entry) => entry.hour < 15);
+  const ratioFromEntries = (entries) => {
+    const total = entries.reduce((sum, entry) => sum + (entry.totalMinutes || 0), 0);
+    if (!total) return 0;
+    const focus = entries.reduce((sum, entry) => sum + (entry.focusMinutes || 0), 0);
+    return focus / total;
+  };
+  const beforeRatio = ratioFromEntries(beforeCut);
+  const afterRatio = ratioFromEntries(afterCut);
+  const dropPct =
+    beforeRatio > 0 && afterRatio < beforeRatio
+      ? Math.round(((beforeRatio - afterRatio) / beforeRatio) * 100)
+      : 0;
+  if (dropPct > 0) {
+    return `Today's learning insight: You are most focused during ${peakLabel}, but distractions rise ${dropPct}% after 15:00. Schedule high-effort tasks in ${peakLabel}.`;
+  }
+  return `Today's learning insight: You are most focused during ${peakLabel}. Schedule high-effort tasks in ${peakLabel}, and use other hours for review or planning.`;
+};
+
+const buildInsightPrompt = (report) => {
+  const peak = report?.efficiencyDistribution?.reduce((best, entry) =>
+    entry.focusRatio > best.focusRatio ? entry : best
+  );
+  const peakHour = Number.isFinite(peak?.hour) ? peak.hour : null;
+  const peakLabel =
+    peakHour === null
+      ? "peak hours"
+      : `${String(peakHour).padStart(2, "0")}–${String((peakHour + 1) % 24).padStart(
+          2,
+          "0"
+        )}`;
+  const insightFallback = computeInsightFallback(report);
+  return [
+    "Use the data below to write 1-2 English sentences of learning insight.",
+    'Requirement: start with "Today\'s learning insight:", mention a specific time window, no lists.',
+    `Data: focus ratio ${(report?.focusRatio || 0).toFixed(2)}, avg continuous focus ${(
+      report?.averageContinuousFocusMinutes || 0
+    ).toFixed(1)} minutes, distractions ${report?.distractionCount || 0}, task switching rate ${(
+      report?.taskSwitchingRate || 0
+    ).toFixed(2)}/hour, peak window ${peakLabel}.`,
+    `Example: ${insightFallback}`,
+  ].join("\n");
+};
+
+const handleAnalyze = async (req, res, ctx) => {
   const { method, url } = req;
   const parsedUrl = new URL(url, "http://localhost");
   const pathname = parsedUrl.pathname;
@@ -159,6 +224,33 @@ const handleAnalyze = (req, res, ctx) => {
       data: {
         day: new Date(dayStart).toISOString().slice(0, 10),
         report,
+      },
+    });
+  }
+  if (pathname === "/api/analyze/insight" && method === "GET") {
+    const user = ctx.requireAuth(req, res);
+    if (!user) return true;
+    const dayParam = parsedUrl.searchParams.get("day");
+    if (dayParam && !DAY_PARAM_REGEX.test(dayParam)) {
+      return ctx.sendJson(res, 400, { ok: false, error: "invalid_day" });
+    }
+    const dayDate = dayParam ? new Date(`${dayParam}T00:00:00`) : new Date();
+    if (Number.isNaN(dayDate.getTime())) {
+      return ctx.sendJson(res, 400, { ok: false, error: "invalid_day" });
+    }
+    const dayStart = startOfDay(dayDate).getTime();
+    const dayEnd = startOfDay(dayStart + 86400000).getTime();
+    const analyses = store.listAnalyses(user.id) || [];
+    const report = buildDailyReport(analyses, dayStart, dayEnd);
+    const prompt = buildInsightPrompt(report);
+    const aiInsight = await createInsight(prompt);
+    const insight = aiInsight.ok ? aiInsight.content : computeInsightFallback(report);
+    return ctx.sendJson(res, 200, {
+      ok: true,
+      data: {
+        day: new Date(dayStart).toISOString().slice(0, 10),
+        insight,
+        source: aiInsight.ok ? "minimax" : "heuristic",
       },
     });
   }

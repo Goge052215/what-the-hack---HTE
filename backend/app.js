@@ -67,7 +67,7 @@ const handler = async (req, res) => {
   if (handleTasks(req, res, ctx)) return;
   if (handleHabits(req, res, ctx)) return;
   if (handleSchedule(req, res, ctx)) return;
-  if (handleAnalyze(req, res, ctx)) return;
+  if (await handleAnalyze(req, res, ctx)) return;
 
   return sendJson(res, 404, { ok: false, error: "not_found" });
 };

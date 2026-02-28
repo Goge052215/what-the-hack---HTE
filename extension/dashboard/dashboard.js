@@ -10,6 +10,7 @@ const averageFocus = document.getElementById("averageFocus");
 const distractionCount = document.getElementById("distractionCount");
 const switchRate = document.getElementById("switchRate");
 const efficiencyList = document.getElementById("efficiencyList");
+const learningInsight = document.getElementById("learningInsight");
 
 const loadTasks = async () => {
   const tasks = await apiRequest("/api/tasks");
@@ -87,6 +88,9 @@ const loadReport = async () => {
     distractionCount.textContent = "--";
     switchRate.textContent = "--";
     efficiencyList.innerHTML = "<li>API not connected</li>";
+    if (learningInsight) {
+      learningInsight.textContent = "Today's learning insight: Connect the API to generate this.";
+    }
     return;
   }
   const report = response.data?.report;
@@ -98,12 +102,25 @@ const loadReport = async () => {
   renderEfficiency(report?.efficiencyDistribution);
 };
 
+const loadInsight = async () => {
+  if (!learningInsight) return;
+  const response = await apiRequest("/api/analyze/insight");
+  if (!response.ok) {
+    learningInsight.textContent = "Today's learning insight: Unable to generate right now.";
+    return;
+  }
+  learningInsight.textContent =
+    response.data?.insight || "Today's learning insight: No data available yet.";
+};
+
 const init = async () => {
   await loadTasks();
   await analyzeTabs();
   await loadReport();
+  await loadInsight();
   setInterval(analyzeTabs, 30000);
   setInterval(loadReport, 60000);
+  setInterval(loadInsight, 90000);
 };
 
 init();
