@@ -1,7 +1,7 @@
 const store = require("../storage");
 const { scoreRelevance } = require("../services/relevanceScorer");
 const { isNonEmptyString } = require("../../shared/utils/validation");
-const { createInsight } = require("../services/llmClient");
+const { createInsight, createScheduleSuggestions } = require("../services/llmClient");
 const { startOfDay, getHour } = require("../../shared/utils/time");
 
 const MAX_GAP_MIN = 5;
@@ -154,6 +154,83 @@ const computeInsightFallback = (report) => {
   return `Today's learning insight: You are most focused during ${peakLabel}. Schedule high-effort tasks in ${peakLabel}, and use other hours for review or planning.`;
 };
 
+const buildFallbackSlots = ({ type, deadline }) => {
+  const base = deadline ? new Date(deadline) : new Date(Date.now() + 2 * 60 * 60 * 1000);
+  const isValidBase = !Number.isNaN(base.getTime());
+  const anchor = isValidBase ? base : new Date(Date.now() + 2 * 60 * 60 * 1000);
+  const addHours = (date, hours) => new Date(date.getTime() + hours * 60 * 60 * 1000);
+  if (type === "exam") {
+    return [
+      {
+        title: "Exam revision session",
+        start: addHours(anchor, -120).toISOString(),
+        durationMin: 60,
+      },
+      {
+        title: "Practice exam questions",
+        start: addHours(anchor, -48).toISOString(),
+        durationMin: 45,
+      },
+      {
+        title: "Final review checklist",
+        start: addHours(anchor, -24).toISOString(),
+        durationMin: 30,
+      },
+    ];
+  }
+  if (type === "assignment") {
+    return [
+      {
+        title: "Practice after class",
+        start: addHours(anchor, -72).toISOString(),
+        durationMin: 45,
+      },
+      {
+        title: "Midway check-in",
+        start: addHours(anchor, -36).toISOString(),
+        durationMin: 30,
+      },
+      {
+        title: "Final polish",
+        start: addHours(anchor, -12).toISOString(),
+        durationMin: 30,
+      },
+    ];
+  }
+  return [
+    {
+      title: "Relaxation break",
+      start: addHours(anchor, 1).toISOString(),
+      durationMin: 20,
+    },
+    {
+      title: "Follow-up session",
+      start: addHours(anchor, 24).toISOString(),
+      durationMin: 30,
+    },
+    {
+      title: "Quick review",
+      start: addHours(anchor, 48).toISOString(),
+      durationMin: 30,
+    },
+  ];
+};
+
+const buildSuggestionPrompt = ({ description, type, deadline }) => {
+  const normalizedType = type === "exam" ? "exam" : type === "assignment" ? "assignment" : "task";
+  return [
+    'Return ONLY a JSON array of 3 to 5 objects with keys: "title", "start", "durationMin".',
+    'Use ISO 8601 datetime strings for "start".',
+    "Include practice events after class-assignment tasks.",
+    "Include revision events before class-exam tasks.",
+    "Include relaxation after class-tasks events.",
+    "If a deadline is provided, schedule relative to the deadline.",
+    `Task type: ${normalizedType}.`,
+    `Task description: ${String(description || "").trim() || "Untitled task"}.`,
+    deadline ? `Task deadline: ${deadline}.` : "Task deadline: none.",
+  ].join("\n");
+};
+
 const buildInsightPrompt = (report) => {
   const peak = report?.efficiencyDistribution?.reduce((best, entry) =>
     entry.focusRatio > best.focusRatio ? entry : best
@@ -251,6 +328,58 @@ const handleAnalyze = async (req, res, ctx) => {
         day: new Date(dayStart).toISOString().slice(0, 10),
         insight,
         source: aiInsight.ok ? "minimax" : "heuristic",
+      },
+    });
+  }
+  if (pathname === "/api/analyze/schedule-suggestions" && method === "POST") {
+    const user = ctx.requireAuth(req, res);
+    if (!user) return true;
+    const task = req.body?.task;
+    const description = task?.description || task?.title || "";
+    if (!isNonEmptyString(description)) {
+      return ctx.sendJson(res, 400, { ok: false, error: "invalid_task" });
+    }
+    const prompt = buildSuggestionPrompt({
+      description,
+      type: task?.type,
+      deadline: task?.deadline,
+    });
+    const aiResponse = await createScheduleSuggestions(prompt);
+    let suggestions = null;
+    if (aiResponse.ok && aiResponse.content) {
+      try {
+        const cleaned = String(aiResponse.content)
+          .trim()
+          .replace(/^```(?:json)?/i, "")
+          .replace(/```$/i, "")
+          .trim();
+        const parsed = JSON.parse(cleaned);
+        if (Array.isArray(parsed)) {
+          suggestions = parsed
+            .map((item) => ({
+              title: typeof item?.title === "string" ? item.title.trim() : "",
+              start: typeof item?.start === "string" ? item.start.trim() : "",
+              durationMin: Number(item?.durationMin),
+            }))
+            .filter(
+              (item) =>
+                item.title &&
+                item.start &&
+                Number.isFinite(item.durationMin) &&
+                item.durationMin > 0
+            );
+        }
+      } catch {
+        suggestions = null;
+      }
+    }
+    const fallback = buildFallbackSlots({ type: task?.type, deadline: task?.deadline });
+    const finalSuggestions = suggestions && suggestions.length > 0 ? suggestions : fallback;
+    return ctx.sendJson(res, 200, {
+      ok: true,
+      data: {
+        suggestions: finalSuggestions,
+        source: suggestions && suggestions.length > 0 ? "minimax" : "fallback",
       },
     });
   }

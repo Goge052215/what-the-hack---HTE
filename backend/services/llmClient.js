@@ -197,10 +197,19 @@ const createInsight = async (prompt) => {
 const createSchedulePlan = async (prompt) => {
   return createMinimaxCompletion({
     prompt,
-    system: "You are a scheduling assistant that outputs only valid JSON.",
+    system: "You are a scheduling assistant that outputs only valid JSON. Suggest practice events after class-assignment tasks. Suggest revision events before class-exam tasks. Suggest relaxation after class-tasks events.",
     temperature: 0.2,
     max_tokens: 700,
   });
 };
 
-module.exports = { createInsight, createSchedulePlan };
+const createScheduleSuggestions = async (prompt) => {
+  return createMinimaxCompletion({
+    prompt,
+    system: "You are a scheduling assistant that outputs only valid JSON.",
+    temperature: 0.3,
+    max_tokens: 260,
+  });
+};
+
+module.exports = { createInsight, createSchedulePlan, createScheduleSuggestions };

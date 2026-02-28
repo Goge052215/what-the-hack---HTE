@@ -38,7 +38,7 @@
     "https://www.googleapis.com/*"
   ],
   "oauth2": {
-    "client_id": "CHROME_WEB_STORE_WILL_PROVIDE_THIS",
+    "client_id": "606381738859-p5ekafo5t8ia6jaki9sm3qe1tt506h8t.apps.googleusercontent.com",
     "scopes": [
       "https://www.googleapis.com/auth/calendar.events"
     ]

@@ -47,6 +47,14 @@
             <button id="statusCompleted" class="status-btn" data-status="completed">Completed</button>
           </div>
         </div>
+        <div id="aiSuggestionPanel" class="ai-suggestions" style="display: none;">
+          <div class="ai-suggestion-header">
+            <span>AI Scheduling Ideas</span>
+            <button id="aiSuggestBtn" class="ai-suggest-btn">✨ Suggest</button>
+          </div>
+          <ul id="aiSuggestionList" class="ai-suggestion-list"></ul>
+          <p id="aiSuggestionStatus" class="ai-suggestion-status"></p>
+        </div>
       </div>
 
       <!-- Add Task Input (hidden by default) -->
@@ -276,6 +284,8 @@
               <span class="accordion-icon">▼</span>
             </button>
             <div class="accordion-content" data-section="calendar">
+              <label for="calendarSelect">Calendar</label>
+              <select id="calendarSelect" class="calendar-select"></select>
               <button id="exportCalendarBtn" class="dashboard-btn"><span class="dashboard-emoji">📤</span><span>Export tasks to Google Calendar</span></button>
               <button id="importCalendarBtn" class="dashboard-btn"><span class="dashboard-emoji">📥</span><span>Import upcoming events</span></button>
               <p id="calendarSyncStatus" class="calendar-status"></p>

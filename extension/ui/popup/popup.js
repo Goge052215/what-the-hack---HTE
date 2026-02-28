@@ -65,6 +65,11 @@ const elements = {
   exportCalendarBtn: document.getElementById("exportCalendarBtn"),
   importCalendarBtn: document.getElementById("importCalendarBtn"),
   calendarSyncStatus: document.getElementById("calendarSyncStatus"),
+  calendarSelect: document.getElementById("calendarSelect"),
+  aiSuggestionPanel: document.getElementById("aiSuggestionPanel"),
+  aiSuggestBtn: document.getElementById("aiSuggestBtn"),
+  aiSuggestionList: document.getElementById("aiSuggestionList"),
+  aiSuggestionStatus: document.getElementById("aiSuggestionStatus"),
   timerMode: document.getElementById("timerMode"),
   timerTime: document.getElementById("timerTime"),
   timerStartBtn: document.getElementById("timerStartBtn"),
@@ -100,6 +105,7 @@ let notificationSettings = {
   taskNudges: true,
   focusDuration: 45
 };
+const CALENDAR_STORAGE_KEY = "calendarSyncCalendarId";
 
 let streakData = {
   count: 0,
@@ -375,6 +381,37 @@ const runTimerInterval = () => {
   }, 1000);
 };
 
+const getActiveTaskName = () => {
+  const activeTask = tasks.find((task) => !task.completed);
+  if (activeTask) {
+    return String(activeTask.description || activeTask.title || "Focus Session");
+  }
+  return "Focus Session";
+};
+
+const getFocusDurationMins = () => {
+  if (timerState.mode === "pomodoro") {
+    return timerConfig.pomodoro.focus || 25;
+  }
+  return timerConfig.custom.focus || 45;
+};
+
+const startFocusSessionTracking = () => {
+  if (timerState.phase !== "focus") return;
+  chrome.runtime.sendMessage({
+    type: "START_SESSION",
+    payload: {
+      taskName: getActiveTaskName(),
+      durationMins: getFocusDurationMins()
+    }
+  });
+};
+
+const endFocusSessionTracking = () => {
+  if (timerState.phase !== "focus") return;
+  chrome.runtime.sendMessage({ type: "END_SESSION" });
+};
+
 const startTimer = () => {
   if (timerState.isRunning) return;
   
@@ -385,12 +422,14 @@ const startTimer = () => {
   runTimerInterval();
   saveTimerState();
   scheduleTimerAlarm();
+  startFocusSessionTracking();
 };
 
 const pauseTimer = () => {
   if (!timerState.isRunning) return;
   
   clearTimerAlarm();
+  endFocusSessionTracking();
   syncRemainingFromStart();
   timerState.isRunning = false;
   timerState.startedAt = null;
@@ -426,11 +465,13 @@ const completeTimerPhase = (startTime, phase) => {
   pauseTimer();
   
   // Save session to history
+  const actualMinutes = Math.max(0, Math.round((Date.now() - startTime) / 60000));
   const session = {
     mode: timerState.mode,
     phase: phase,
     startTime: new Date(startTime).toISOString(),
     endTime: new Date().toISOString(),
+    activeMinutes: actualMinutes,
     duration: phase === "focus" 
       ? (timerState.mode === "pomodoro" ? timerConfig.pomodoro.focus : timerConfig.custom.focus)
       : (timerState.mode === "pomodoro" ? timerConfig.pomodoro.shortBreak : timerConfig.custom.break)
@@ -770,6 +811,7 @@ const addTask = async () => {
   saveTasks();
   renderTasks();
   updateCurrentTask();
+  fetchAiSuggestions(newTask, true);
   
   // Google Calendar integration disabled until Chrome Web Store publication
   // Will be enabled when extension is published and OAuth is configured
@@ -800,20 +842,259 @@ const addTask = async () => {
   }
 };
 
-const getCalendarToken = () =>
-  new Promise((resolve, reject) => {
-    chrome.identity.getAuthToken({ interactive: true }, (token) => {
+const setAiSuggestionStatus = (message) => {
+  if (elements.aiSuggestionStatus) {
+    elements.aiSuggestionStatus.textContent = message || "";
+  }
+};
+
+const renderAiSuggestions = (task) => {
+  if (!elements.aiSuggestionPanel || !elements.aiSuggestionList) return;
+  if (!task) {
+    elements.aiSuggestionPanel.style.display = "none";
+    elements.aiSuggestionList.innerHTML = "";
+    setAiSuggestionStatus("");
+    return;
+  }
+  elements.aiSuggestionPanel.style.display = "block";
+  const suggestions = Array.isArray(task.aiSuggestionSlots) ? task.aiSuggestionSlots : [];
+  elements.aiSuggestionList.innerHTML = suggestions
+    .map((item, index) => {
+      const start = new Date(item.start);
+      const timeLabel = Number.isNaN(start.getTime())
+        ? "Time TBD"
+        : `${start.toLocaleDateString()} ${start.toLocaleTimeString([], {
+            hour: "2-digit",
+            minute: "2-digit",
+          })}`;
+      const durationLabel = Number.isFinite(item.durationMin) ? `${item.durationMin} min` : "";
+      const selected = task.aiSelectedSuggestionIndex === index;
+      return `<li>
+        <div>${item.title}</div>
+        <div>${timeLabel}${durationLabel ? ` • ${durationLabel}` : ""}</div>
+        <div class="ai-suggestion-actions">
+          <button class="ai-suggestion-btn ai-suggestion-select ${selected ? "selected" : ""}" data-suggestion="${encodeURIComponent(
+        String(index)
+      )}">${selected ? "Selected" : "Select"}</button>
+          <button class="ai-suggestion-btn ai-suggestion-calendar" data-suggestion="${encodeURIComponent(
+            String(index)
+          )}">Create Event</button>
+        </div>
+      </li>`;
+    })
+    .join("");
+  if (suggestions.length === 0) {
+    setAiSuggestionStatus("No suggestions yet.");
+  } else {
+    setAiSuggestionStatus("");
+  }
+  elements.aiSuggestionList.querySelectorAll(".ai-suggestion-select").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const raw = btn.getAttribute("data-suggestion") || "";
+      const index = Number(decodeURIComponent(raw));
+      if (!Number.isFinite(index)) return;
+      task.aiSelectedSuggestionIndex = index;
+      saveTasks();
+      renderTasks();
+      updateCurrentTask();
+    });
+  });
+  elements.aiSuggestionList.querySelectorAll(".ai-suggestion-calendar").forEach((btn) => {
+    btn.addEventListener("click", async () => {
+      const raw = btn.getAttribute("data-suggestion") || "";
+      const index = Number(decodeURIComponent(raw));
+      if (!Number.isFinite(index)) return;
+      const slot = suggestions[index];
+      if (!slot) return;
+      await createSuggestionCalendarEvent(task, slot);
+    });
+  });
+};
+
+const createSuggestionCalendarEvent = async (task, suggestion) => {
+  const token = await ensureCalendarToken(true, "Google Calendar sign-in required.");
+  if (!token) return;
+  const start = new Date(suggestion.start);
+  if (Number.isNaN(start.getTime())) {
+    setAiSuggestionStatus("Suggestion time is invalid.");
+    return;
+  }
+  const durationMin = Number.isFinite(suggestion.durationMin) ? suggestion.durationMin : 60;
+  const end = new Date(start.getTime() + durationMin * 60 * 1000);
+  const eventData = {
+    summary: `✨ ${suggestion.title || "Suggested slot"}`,
+    description: `Suggested from task: ${task.description}`,
+    start: {
+      dateTime: start.toISOString(),
+      timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+    },
+    end: {
+      dateTime: end.toISOString(),
+      timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+    },
+  };
+  const calendarId = getSelectedCalendarId();
+  const response = await fetch(
+    `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(calendarId)}/events`,
+    {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(eventData),
+    }
+  );
+  if (response.ok) {
+    setAiSuggestionStatus("Event created.");
+    return;
+  }
+  if (response.status === 401 || response.status === 403) {
+    await removeCalendarToken(token);
+    return createSuggestionCalendarEvent(task, suggestion);
+  }
+  setAiSuggestionStatus("Unable to create event.");
+};
+
+const fetchAiSuggestions = async (task, force = false) => {
+  if (!task) return;
+  if (!force && task.aiSuggestionRequested) {
+    renderAiSuggestions(task);
+    return;
+  }
+  if (elements.aiSuggestBtn) {
+    elements.aiSuggestBtn.disabled = true;
+  }
+  task.aiSuggestionRequested = true;
+  saveTasks();
+  setAiSuggestionStatus("Generating suggestions...");
+  try {
+    const response = await apiRequest("/api/analyze/schedule-suggestions", {
+      method: "POST",
+      body: {
+        task: {
+          description: task.description,
+          type: task.type,
+          deadline: task.deadline,
+        },
+      },
+    });
+    if (response.ok && Array.isArray(response.data?.suggestions)) {
+      task.aiSuggestionSlots = response.data.suggestions.slice(0, 5);
+      task.aiSuggestionSource = response.data?.source || "minimax";
+      saveTasks();
+      renderTasks();
+      updateCurrentTask();
+      setAiSuggestionStatus("Suggestions ready.");
+    } else {
+      setAiSuggestionStatus("Unable to get suggestions.");
+    }
+  } catch (error) {
+    setAiSuggestionStatus("Unable to get suggestions.");
+  }
+  if (elements.aiSuggestBtn) {
+    elements.aiSuggestBtn.disabled = false;
+  }
+};
+
+const requestCalendarToken = (interactive = true) =>
+  new Promise((resolve) => {
+    chrome.identity.getAuthToken({ interactive }, (token) => {
       if (chrome.runtime.lastError) {
-        reject(chrome.runtime.lastError);
+        resolve({ token: null, error: chrome.runtime.lastError });
       } else {
-        resolve(token);
+        resolve({ token, error: null });
       }
     });
   });
 
+const removeCalendarToken = (token) =>
+  new Promise((resolve) => {
+    if (!token) {
+      resolve();
+      return;
+    }
+    chrome.identity.removeCachedAuthToken({ token }, () => resolve());
+  });
+
+const ensureCalendarToken = async (interactive = true, message) => {
+  const { token, error } = await requestCalendarToken(interactive);
+  if (!token || error) {
+    if (message) {
+      const details = error?.message ? ` (${error.message})` : "";
+      setCalendarStatus(`${message}${details}`);
+    }
+    return null;
+  }
+  return token;
+};
+
+const getSelectedCalendarId = () => elements.calendarSelect?.value || "primary";
+
+const populateCalendarSelect = (calendars = [], selectedId) => {
+  if (!elements.calendarSelect) return;
+  const select = elements.calendarSelect;
+  select.innerHTML = "";
+  const primaryOption = document.createElement("option");
+  primaryOption.value = "primary";
+  primaryOption.textContent = "Primary";
+  select.appendChild(primaryOption);
+  calendars.forEach((calendar) => {
+    if (!calendar?.id || calendar.id === "primary") return;
+    const option = document.createElement("option");
+    option.value = calendar.id;
+    option.textContent = calendar.summary || calendar.id;
+    select.appendChild(option);
+  });
+  select.value = selectedId || "primary";
+};
+
+const loadCalendarSelection = () =>
+  new Promise((resolve) => {
+    chrome.storage.local.get([CALENDAR_STORAGE_KEY], (result) => {
+      const selectedId = result[CALENDAR_STORAGE_KEY] || "primary";
+      populateCalendarSelect([], selectedId);
+      resolve(selectedId);
+    });
+  });
+
+const loadCalendarList = async () => {
+  try {
+    const token = await ensureCalendarToken(false, "Sign in to load calendars.");
+    if (!token) {
+      return;
+    }
+    const response = await fetch(
+      "https://www.googleapis.com/calendar/v3/users/me/calendarList?maxResults=50",
+      {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      }
+    );
+    if (!response.ok) {
+      if (response.status === 401 || response.status === 403) {
+        await removeCalendarToken(token);
+        const retryToken = await ensureCalendarToken(true, "Google Calendar sign-in required.");
+        if (!retryToken) return;
+        return loadCalendarList();
+      }
+      setCalendarStatus("Unable to load calendar list.");
+      return;
+    }
+    const payload = await response.json();
+    const calendars = Array.isArray(payload.items) ? payload.items : [];
+    chrome.storage.local.get([CALENDAR_STORAGE_KEY], (result) => {
+      populateCalendarSelect(calendars, result[CALENDAR_STORAGE_KEY]);
+    });
+  } catch (error) {
+    setCalendarStatus("Unable to load calendar list.");
+  }
+};
+
 const addToGoogleCalendar = async (task) => {
   try {
-    const token = await getCalendarToken();
+    let token = await ensureCalendarToken(true, "Google Calendar sign-in required.");
 
     if (!token) {
       return null;
@@ -841,15 +1122,25 @@ const addToGoogleCalendar = async (task) => {
       },
     };
 
-    const response = await fetch("https://www.googleapis.com/calendar/v3/calendars/primary/events", {
+    const calendarId = getSelectedCalendarId();
+    const response = await fetch(
+      `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(calendarId)}/events`,
+      {
       method: "POST",
       headers: {
         Authorization: `Bearer ${token}`,
         "Content-Type": "application/json",
       },
       body: JSON.stringify(eventData),
-    });
+    }
+    );
 
+    if (response.status === 401 || response.status === 403) {
+      await removeCalendarToken(token);
+      token = await ensureCalendarToken(true, "Google Calendar sign-in required.");
+      if (!token) return null;
+      return addToGoogleCalendar(task);
+    }
     if (response.ok) {
       const payload = await response.json();
       return payload?.id || null;
@@ -923,15 +1214,17 @@ const importTasksFromGoogleCalendar = async () => {
   elements.importCalendarBtn.disabled = true;
   setCalendarStatus("Importing events...");
   try {
-    const token = await getCalendarToken();
+    let token = await ensureCalendarToken(true, "Google Calendar sign-in required.");
     if (!token) {
-      setCalendarStatus("Unable to authenticate with Google Calendar.");
       elements.importCalendarBtn.disabled = false;
       return;
     }
     const timeMin = new Date().toISOString();
+    const calendarId = getSelectedCalendarId();
     const response = await fetch(
-      `https://www.googleapis.com/calendar/v3/calendars/primary/events?timeMin=${encodeURIComponent(
+      `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(
+        calendarId
+      )}/events?timeMin=${encodeURIComponent(
         timeMin
       )}&singleEvents=true&orderBy=startTime&maxResults=20`,
       {
@@ -941,6 +1234,15 @@ const importTasksFromGoogleCalendar = async () => {
       }
     );
     if (!response.ok) {
+      if (response.status === 401 || response.status === 403) {
+        await removeCalendarToken(token);
+        token = await ensureCalendarToken(true, "Google Calendar sign-in required.");
+        if (!token) {
+          elements.importCalendarBtn.disabled = false;
+          return;
+        }
+        return importTasksFromGoogleCalendar();
+      }
       setCalendarStatus("Failed to fetch calendar events.");
       elements.importCalendarBtn.disabled = false;
       return;
@@ -1012,6 +1314,7 @@ const updateCurrentTask = () => {
     elements.currentTaskTitle.textContent = "No active task";
     elements.progressContainer.style.display = "none";
     elements.currentTaskDisplay.classList.remove("compact");
+    renderAiSuggestions(null);
     return;
   }
 
@@ -1024,6 +1327,8 @@ const updateCurrentTask = () => {
   const status = activeTask.status || "not-started";
   updateProgressBar(status);
   updateStatusButtons(status);
+  renderAiSuggestions(activeTask);
+  fetchAiSuggestions(activeTask);
 };
 
 const updateProgressBar = (status) => {
@@ -1410,6 +1715,8 @@ const init = async () => {
   loadTimerHistory();
   initAccordion();
   updateCurrentTask();
+  await loadCalendarSelection();
+  await loadCalendarList();
   const baseUrl = await ensureApiBaseUrl();
   elements.apiBaseUrl.value = baseUrl;
   await analyzeTabs();
@@ -1470,6 +1777,20 @@ if (elements.exportCalendarBtn) {
 }
 if (elements.importCalendarBtn) {
   elements.importCalendarBtn.addEventListener("click", importTasksFromGoogleCalendar);
+}
+if (elements.calendarSelect) {
+  elements.calendarSelect.addEventListener("change", () => {
+    const selectedId = getSelectedCalendarId();
+    chrome.storage.local.set({ [CALENDAR_STORAGE_KEY]: selectedId });
+    setCalendarStatus(`Selected calendar: ${elements.calendarSelect.options[elements.calendarSelect.selectedIndex]?.textContent || "Primary"}`);
+  });
+}
+if (elements.aiSuggestBtn) {
+  elements.aiSuggestBtn.addEventListener("click", () => {
+    const activeTask = tasks.find((task) => !task.completed);
+    if (!activeTask) return;
+    fetchAiSuggestions(activeTask, true);
+  });
 }
 
 elements.settingsBtn.addEventListener("click", () => {

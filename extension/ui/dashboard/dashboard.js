@@ -10,6 +10,8 @@ const elements = {
   analysisStatus: document.getElementById("analysisStatus"),
   analysisMeta: document.getElementById("analysisMeta"),
   focusProgressBar: document.getElementById("focusProgressBar"),
+  analysisActiveTime: document.getElementById("analysisActiveTime"),
+  analysisSummary: document.getElementById("analysisSummary"),
   tasksCompleted: document.getElementById("tasksCompleted"),
   focusTime: document.getElementById("focusTime"),
   breakTime: document.getElementById("breakTime"),
@@ -946,14 +948,10 @@ const renderTasks = () => {
 const updateInsights = () => {
   const completed = taskHistory.length;
   elements.tasksCompleted.textContent = completed;
-  
-  const totalTasks = tasks.length + completed;
-  const productivity = totalTasks > 0 ? Math.round((completed / totalTasks) * 100) : 0;
-  elements.productivityScore.textContent = `${productivity}%`;
 };
 
 const buildTabContext = async () => {
-  const tabs = await chrome.tabs.query({});
+  const tabs = await chrome.tabs.query({ active: true });
   const entries = tabs
     .filter((tab) => tab?.url && !tab.url.startsWith("chrome://") && !tab.url.startsWith("edge://"))
     .slice(0, 20)
@@ -973,10 +971,13 @@ const scoreContext = (context) => {
 const analyzeTabs = async () => {
   const { context, count } = await buildTabContext();
   if (!context) {
-    elements.analysisStatus.textContent = "No tabs to analyze";
+    elements.analysisStatus.textContent = "No active tabs to analyze";
     elements.focusScoreValue.textContent = "--";
-    elements.analysisMeta.textContent = "Tabs analyzed: 0";
+    elements.analysisMeta.textContent = "Active tabs analyzed: 0";
     elements.focusProgressBar.style.width = "0%";
+    if (elements.analysisSummary) {
+      elements.analysisSummary.textContent = "AI summary: --";
+    }
     return;
   }
   
@@ -995,9 +996,19 @@ const analyzeTabs = async () => {
   }
   
   elements.focusScoreValue.textContent = typeof score === "number" ? score.toFixed(2) : "--";
-  elements.analysisMeta.textContent = `Tabs analyzed: ${count}`;
+  elements.analysisMeta.textContent = `Active tabs analyzed: ${count}`;
   elements.focusProgressBar.style.width = `${(score * 100).toFixed(0)}%`;
   
+  if (elements.analysisSummary) {
+    const insight = await getInsightForToday();
+    if (insight?.text) {
+      const sourceLabel = insight.source === "minimax" ? "Minimax" : "Heuristic";
+      elements.analysisSummary.textContent = `AI summary (${sourceLabel}): ${insight.text}`;
+    } else {
+      elements.analysisSummary.textContent = "AI summary: Gathering more focus data...";
+    }
+  }
+
   // Behavioral Analysis Updates
   const isStudy = category === "study" || score >= 0.6;
   if (isStudy) {
@@ -1044,25 +1055,47 @@ const loadTimerSessions = async () => {
   });
 };
 
+const getSessionMinutes = (session) => {
+  const minutes = Number.isFinite(session?.activeMinutes) ? session.activeMinutes : session?.duration;
+  return Number.isFinite(minutes) ? minutes : 0;
+};
+
 const displayTimerStats = (sessions) => {
   const today = new Date().toDateString();
-  const todaySessions = sessions.filter(s => {
+  const todaySessions = sessions.filter((s) => {
     const sessionDate = new Date(s.startTime).toDateString();
-    return sessionDate === today && s.phase === "focus";
+    return sessionDate === today;
   });
-  
-  // Calculate total focus time today
-  const totalMinutes = todaySessions.reduce((sum, s) => sum + s.duration, 0);
-  const hours = Math.floor(totalMinutes / 60);
-  const mins = totalMinutes % 60;
-  elements.todayFocusTime.textContent = `${hours}h ${mins}m`;
-  
+
+  const focusSessions = todaySessions.filter((s) => s.phase === "focus");
+  const breakSessions = todaySessions.filter((s) => s.phase === "break");
+
+  const totalFocusMinutes = focusSessions.reduce((sum, s) => sum + getSessionMinutes(s), 0);
+  const totalBreakMinutes = breakSessions.reduce((sum, s) => sum + getSessionMinutes(s), 0);
+  const totalMinutes = totalFocusMinutes + totalBreakMinutes;
+
+  const focusHours = Math.floor(totalFocusMinutes / 60);
+  const focusMins = totalFocusMinutes % 60;
+  elements.todayFocusTime.textContent = `${focusHours}h ${focusMins}m`;
+  elements.focusTime.textContent = `${focusHours}h ${focusMins}m`;
+  if (elements.analysisActiveTime) {
+    elements.analysisActiveTime.textContent = `Active focus today: ${focusHours}h ${focusMins}m`;
+  }
+
+  const breakHours = Math.floor(totalBreakMinutes / 60);
+  const breakMins = totalBreakMinutes % 60;
+  elements.breakTime.textContent = `${breakHours}h ${breakMins}m`;
+
+  const productivity =
+    totalMinutes > 0 ? Math.round((totalFocusMinutes / totalMinutes) * 100) : 0;
+  elements.productivityScore.textContent = `${productivity}%`;
+
   // Sessions completed
-  elements.sessionsCompleted.textContent = todaySessions.length;
+  elements.sessionsCompleted.textContent = focusSessions.length;
   
   // Average session length
-  if (todaySessions.length > 0) {
-    const avgMins = Math.round(totalMinutes / todaySessions.length);
+  if (focusSessions.length > 0) {
+    const avgMins = Math.round(totalFocusMinutes / focusSessions.length);
     elements.avgSessionLength.textContent = `${avgMins}m`;
   } else {
     elements.avgSessionLength.textContent = "--";
@@ -1084,6 +1117,10 @@ const displaySessionHistory = (sessions) => {
     const dateStr = startTime.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
     const phaseLabel = session.phase === "focus" ? "🎯 Focus" : "☕ Break";
     const modeLabel = session.mode === "pomodoro" ? "Pomodoro" : "Custom";
+    const durationMinutes = getSessionMinutes(session);
+    const durationLabel = Number.isFinite(session?.activeMinutes)
+      ? `${durationMinutes}m active`
+      : `${durationMinutes}m`;
     
     return `
       <div class="session-item">
@@ -1091,7 +1128,7 @@ const displaySessionHistory = (sessions) => {
           <span class="session-type ${session.phase}">${phaseLabel} - ${modeLabel}</span>
           <span class="session-time">${dateStr} at ${timeStr}</span>
         </div>
-        <span class="session-duration">${session.duration}m</span>
+        <span class="session-duration">${durationLabel}</span>
       </div>
     `;
   }).join('');
