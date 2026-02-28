@@ -635,84 +635,106 @@ const saveNotificationSettings = () => {
 };
 
 const testAllNotifications = async () => {
-  // Request notification permission first
-  const granted = await chrome.permissions.request({ permissions: ['notifications'] });
-  if (!granted) {
-    alert('Please enable notifications to test!');
-    return;
+  console.log('Testing notifications...');
+  
+  try {
+    // Request notification permission first
+    const granted = await chrome.permissions.request({ permissions: ['notifications'] });
+    console.log('Permission granted:', granted);
+    
+    if (!granted) {
+      alert('Please enable notifications to test!');
+      return;
+    }
+    
+    alert('Testing all notifications! You should see 6 notifications over the next 10 seconds.');
+    
+    // Test 1: Distraction Alert
+    setTimeout(() => {
+      console.log('Creating distraction notification...');
+      chrome.notifications.create('test-distraction', {
+        type: 'basic',
+        title: '🤔 Noticed you\'re switching tabs',
+        message: 'It seems you might be distracted. Consider returning to your task.',
+        priority: 2
+      }, (notificationId) => {
+        console.log('Distraction notification created:', notificationId);
+      });
+    }, 500);
+    
+    // Test 2: Break Reminder
+    setTimeout(() => {
+      console.log('Creating break reminder notification...');
+      chrome.notifications.create('test-break', {
+        type: 'basic',
+        title: '⏰ Time for a break!',
+        message: 'You\'ve been focused for 45 minutes. Take a 5-minute break to recharge.',
+        buttons: [
+          { title: 'Take Break' },
+          { title: 'Keep Working' }
+        ],
+        priority: 2
+      }, (notificationId) => {
+        console.log('Break notification created:', notificationId);
+      });
+    }, 2000);
+    
+    // Test 3: Deadline Warning (24h)
+    setTimeout(() => {
+      console.log('Creating 24h deadline notification...');
+      chrome.notifications.create('test-deadline-24h', {
+        type: 'basic',
+        title: '⚠️ Deadline Approaching',
+        message: 'Essay Assignment is due in 24 hours!',
+        priority: 2
+      }, (notificationId) => {
+        console.log('24h deadline notification created:', notificationId);
+      });
+    }, 3500);
+    
+    // Test 4: Deadline Warning (1h)
+    setTimeout(() => {
+      console.log('Creating 1h deadline notification...');
+      chrome.notifications.create('test-deadline-1h', {
+        type: 'basic',
+        title: '⚠️ Deadline Soon!',
+        message: 'Math Exam is due in 1 hour!',
+        priority: 2
+      }, (notificationId) => {
+        console.log('1h deadline notification created:', notificationId);
+      });
+    }, 5000);
+    
+    // Test 5: Deadline Imminent (15m)
+    setTimeout(() => {
+      console.log('Creating 15m deadline notification...');
+      chrome.notifications.create('test-deadline-15m', {
+        type: 'basic',
+        title: '🚨 Deadline Imminent!',
+        message: 'Project Submission is due in 15 minutes!',
+        priority: 2
+      }, (notificationId) => {
+        console.log('15m deadline notification created:', notificationId);
+      });
+    }, 6500);
+    
+    // Test 6: Task Nudge
+    setTimeout(() => {
+      console.log('Creating task nudge notification...');
+      chrome.notifications.create('test-nudge', {
+        type: 'basic',
+        title: '💡 Task Suggestion',
+        message: 'You just finished a video. Want to summarize key points?',
+        priority: 2
+      }, (notificationId) => {
+        console.log('Task nudge notification created:', notificationId);
+      });
+    }, 8000);
+    
+  } catch (error) {
+    console.error('Error testing notifications:', error);
+    alert('Error: ' + error.message);
   }
-  
-  // Test 1: Distraction Alert
-  setTimeout(() => {
-    chrome.notifications.create('test-distraction', {
-      type: 'basic',
-      iconUrl: chrome.runtime.getURL('assets/icon128.png'),
-      title: '🤔 Noticed you\'re switching tabs',
-      message: 'It seems you might be distracted. Consider returning to your task.',
-      priority: 2
-    });
-  }, 500);
-  
-  // Test 2: Break Reminder
-  setTimeout(() => {
-    chrome.notifications.create('test-break', {
-      type: 'basic',
-      iconUrl: chrome.runtime.getURL('assets/icon128.png'),
-      title: '⏰ Time for a break!',
-      message: 'You\'ve been focused for 45 minutes. Take a 5-minute break to recharge.',
-      buttons: [
-        { title: 'Take Break' },
-        { title: 'Keep Working' }
-      ],
-      priority: 2
-    });
-  }, 2000);
-  
-  // Test 3: Deadline Warning (24h)
-  setTimeout(() => {
-    chrome.notifications.create('test-deadline-24h', {
-      type: 'basic',
-      iconUrl: chrome.runtime.getURL('assets/icon128.png'),
-      title: '⚠️ Deadline Approaching',
-      message: 'Essay Assignment is due in 24 hours!',
-      priority: 2
-    });
-  }, 3500);
-  
-  // Test 4: Deadline Warning (1h)
-  setTimeout(() => {
-    chrome.notifications.create('test-deadline-1h', {
-      type: 'basic',
-      iconUrl: chrome.runtime.getURL('assets/icon128.png'),
-      title: '⚠️ Deadline Soon!',
-      message: 'Math Exam is due in 1 hour!',
-      priority: 2
-    });
-  }, 5000);
-  
-  // Test 5: Deadline Imminent (15m)
-  setTimeout(() => {
-    chrome.notifications.create('test-deadline-15m', {
-      type: 'basic',
-      iconUrl: chrome.runtime.getURL('assets/icon128.png'),
-      title: '🚨 Deadline Imminent!',
-      message: 'Project Submission is due in 15 minutes!',
-      priority: 2
-    });
-  }, 6500);
-  
-  // Test 6: Task Nudge
-  setTimeout(() => {
-    chrome.notifications.create('test-nudge', {
-      type: 'basic',
-      iconUrl: chrome.runtime.getURL('assets/icon128.png'),
-      title: '💡 Task Suggestion',
-      message: 'You just finished a video. Want to summarize key points?',
-      priority: 2
-    });
-  }, 8000);
-  
-  alert('Testing all notifications! You should see 6 notifications over the next 10 seconds.');
 };
 
 const init = async () => {
