@@ -35,6 +35,10 @@ const elements = {
   sessionHistory: document.getElementById("sessionHistory"),
   aiInsights: document.getElementById("aiInsights"),
   aiInsightText: document.getElementById("aiInsightText"),
+  customColorBtn: document.getElementById("customColorBtn"),
+  colorPickerPanel: document.getElementById("colorPickerPanel"),
+  colorPicker: document.getElementById("colorPicker"),
+  applyCustomColor: document.getElementById("applyCustomColor"),
 };
 
 let tasks = [];
@@ -325,6 +329,17 @@ const loadPalette = async () => {
       // If custom palette, load the custom color and regenerate palette
       if (paletteId === "custom" && result.customColor) {
         generateCustomPalette(result.customColor);
+        
+        // Update custom color button and picker to show selected color
+        if (elements.customColorBtn) {
+          const customDot = elements.customColorBtn.querySelector('.custom-color-dot');
+          if (customDot) {
+            customDot.style.background = result.customColor;
+          }
+        }
+        if (elements.colorPicker) {
+          elements.colorPicker.value = result.customColor;
+        }
       }
       
       applyPalette(paletteId);
@@ -834,6 +849,17 @@ chrome.storage.onChanged.addListener((changes, namespace) => {
       if (newColor) {
         generateCustomPalette(newColor);
         applyPalette("custom");
+        
+        // Update custom color button and picker
+        if (elements.customColorBtn) {
+          const customDot = elements.customColorBtn.querySelector('.custom-color-dot');
+          if (customDot) {
+            customDot.style.background = newColor;
+          }
+        }
+        if (elements.colorPicker) {
+          elements.colorPicker.value = newColor;
+        }
       }
     }
     
@@ -881,7 +907,46 @@ if (elements.paletteToggle && elements.paletteMenu) {
   document.addEventListener("keydown", (e) => {
     if (e.key === "Escape") {
       closePaletteMenu();
+      if (elements.colorPickerPanel) {
+        elements.colorPickerPanel.style.display = "none";
+      }
     }
+  });
+}
+
+// Custom color picker event listeners
+if (elements.customColorBtn && elements.colorPickerPanel && elements.colorPicker && elements.applyCustomColor) {
+  elements.customColorBtn.addEventListener("click", (e) => {
+    e.stopPropagation();
+    const isVisible = elements.colorPickerPanel.style.display === "flex" || elements.colorPickerPanel.style.display === "block";
+    elements.colorPickerPanel.style.display = isVisible ? "none" : "block";
+  });
+
+  elements.applyCustomColor.addEventListener("click", () => {
+    const selectedColor = elements.colorPicker.value;
+    generateCustomPalette(selectedColor);
+    setPalette("custom");
+    
+    // Update custom color button to show selected color
+    const customDot = elements.customColorBtn.querySelector('.custom-color-dot');
+    if (customDot) {
+      customDot.style.background = selectedColor;
+    }
+    
+    // Save custom color
+    chrome.storage.local.set({ customColor: selectedColor });
+    
+    // Hide color picker panel and close palette menu
+    elements.colorPickerPanel.style.display = "none";
+    closePaletteMenu();
+  });
+
+  // Close color picker when clicking outside
+  document.addEventListener("click", (e) => {
+    const target = e.target;
+    if (!(target instanceof Element)) return;
+    if (elements.colorPickerPanel.contains(target) || elements.customColorBtn.contains(target)) return;
+    elements.colorPickerPanel.style.display = "none";
   });
 }
 

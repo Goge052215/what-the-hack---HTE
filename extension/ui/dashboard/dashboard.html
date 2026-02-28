@@ -41,6 +41,16 @@
                   <span class="swatch-dot" style="--swatch:#e07b5f"></span>
                   <span class="swatch-name">Sunset</span>
                 </button>
+                <button id="customColorBtn" class="palette-swatch custom-color-swatch" role="menuitem" aria-label="Custom Color">
+                  <span class="swatch-dot custom-color-dot" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 25%, #f093fb 50%, #4facfe 75%, #00f2fe 100%)">+</span>
+                  <span class="swatch-name">Custom</span>
+                </button>
+              </div>
+              
+              <div id="colorPickerPanel" class="color-picker-panel" style="display: none;">
+                <label for="colorPicker">Choose Your Color</label>
+                <input id="colorPicker" type="color" value="#a8b5c8" />
+                <button id="applyCustomColor" class="apply-color-btn">Apply Color</button>
               </div>
             </div>
             <button id="themeToggle" class="theme-toggle" aria-label="Toggle theme">☀️</button>
