@@ -62,6 +62,9 @@ const elements = {
   settingsPanel: document.getElementById("settingsPanel"),
   taskListPanel: document.getElementById("taskListPanel"),
   addTaskPanel: document.getElementById("addTaskPanel"),
+  exportCalendarBtn: document.getElementById("exportCalendarBtn"),
+  importCalendarBtn: document.getElementById("importCalendarBtn"),
+  calendarSyncStatus: document.getElementById("calendarSyncStatus"),
   timerMode: document.getElementById("timerMode"),
   timerTime: document.getElementById("timerTime"),
   timerStartBtn: document.getElementById("timerStartBtn"),
@@ -797,24 +800,25 @@ const addTask = async () => {
   }
 };
 
+const getCalendarToken = () =>
+  new Promise((resolve, reject) => {
+    chrome.identity.getAuthToken({ interactive: true }, (token) => {
+      if (chrome.runtime.lastError) {
+        reject(chrome.runtime.lastError);
+      } else {
+        resolve(token);
+      }
+    });
+  });
+
 const addToGoogleCalendar = async (task) => {
   try {
-    // Get OAuth token
-    const token = await new Promise((resolve, reject) => {
-      chrome.identity.getAuthToken({ interactive: true }, (token) => {
-        if (chrome.runtime.lastError) {
-          reject(chrome.runtime.lastError);
-        } else {
-          resolve(token);
-        }
-      });
-    });
+    const token = await getCalendarToken();
 
     if (!token) {
-      return false;
+      return null;
     }
 
-    // Prepare event data
     const deadline = new Date(task.deadline);
     const typeEmoji = task.type === "assignment" ? "📝" : task.type === "exam" ? "📝" : "📌";
     const eventData = {
@@ -825,19 +829,18 @@ const addToGoogleCalendar = async (task) => {
         timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
       },
       end: {
-        dateTime: new Date(deadline.getTime() + 60 * 60 * 1000).toISOString(), // 1 hour duration
+        dateTime: new Date(deadline.getTime() + 60 * 60 * 1000).toISOString(),
         timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
       },
       reminders: {
         useDefault: false,
         overrides: [
           { method: "popup", minutes: 60 },
-          { method: "popup", minutes: 1440 }, // 1 day before
+          { method: "popup", minutes: 1440 },
         ],
       },
     };
 
-    // Create calendar event
     const response = await fetch("https://www.googleapis.com/calendar/v3/calendars/primary/events", {
       method: "POST",
       headers: {
@@ -848,15 +851,121 @@ const addToGoogleCalendar = async (task) => {
     });
 
     if (response.ok) {
-      await response.json();
-      return true;
+      const payload = await response.json();
+      return payload?.id || null;
     } else {
       await response.text();
-      return false;
+      return null;
     }
   } catch (error) {
-    return false;
+    return null;
   }
+};
+
+const setCalendarStatus = (message) => {
+  if (elements.calendarSyncStatus) {
+    elements.calendarSyncStatus.textContent = message || "";
+  }
+};
+
+const exportTasksToGoogleCalendar = async () => {
+  if (!elements.exportCalendarBtn) return;
+  elements.exportCalendarBtn.disabled = true;
+  setCalendarStatus("Exporting tasks...");
+  const candidates = tasks.filter((task) => task.deadline && !task.calendarEventId);
+  if (candidates.length === 0) {
+    setCalendarStatus("No new tasks with deadlines to export.");
+    elements.exportCalendarBtn.disabled = false;
+    return;
+  }
+  let exported = 0;
+  for (const task of candidates) {
+    const eventId = await addToGoogleCalendar(task);
+    if (eventId) {
+      task.calendarEventId = eventId;
+      exported += 1;
+    }
+  }
+  saveTasks();
+  renderTasks();
+  updateCurrentTask();
+  setCalendarStatus(`Exported ${exported} task${exported === 1 ? "" : "s"}.`);
+  elements.exportCalendarBtn.disabled = false;
+};
+
+const parseTaskTypeFromDescription = (description = "") => {
+  const match = String(description).match(/Task Type:\s*(assignment|exam|task)/i);
+  if (match) return normalizeTaskType(match[1].toLowerCase());
+  return "task";
+};
+
+const buildTaskFromCalendarEvent = (event) => {
+  const start = event?.start?.dateTime || event?.start?.date;
+  if (!start) return null;
+  const eventTime = event.start.dateTime
+    ? new Date(event.start.dateTime)
+    : new Date(`${event.start.date}T09:00:00`);
+  const description = event.summary || "Untitled event";
+  return {
+    id: `${Date.now()}-${Math.random().toString(16).slice(2)}`,
+    description,
+    type: parseTaskTypeFromDescription(event.description),
+    deadline: eventTime.toISOString().slice(0, 16),
+    status: "not-started",
+    completed: false,
+    createdAt: new Date().toISOString(),
+    calendarEventId: event.id,
+  };
+};
+
+const importTasksFromGoogleCalendar = async () => {
+  if (!elements.importCalendarBtn) return;
+  elements.importCalendarBtn.disabled = true;
+  setCalendarStatus("Importing events...");
+  try {
+    const token = await getCalendarToken();
+    if (!token) {
+      setCalendarStatus("Unable to authenticate with Google Calendar.");
+      elements.importCalendarBtn.disabled = false;
+      return;
+    }
+    const timeMin = new Date().toISOString();
+    const response = await fetch(
+      `https://www.googleapis.com/calendar/v3/calendars/primary/events?timeMin=${encodeURIComponent(
+        timeMin
+      )}&singleEvents=true&orderBy=startTime&maxResults=20`,
+      {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      }
+    );
+    if (!response.ok) {
+      setCalendarStatus("Failed to fetch calendar events.");
+      elements.importCalendarBtn.disabled = false;
+      return;
+    }
+    const payload = await response.json();
+    const items = Array.isArray(payload.items) ? payload.items : [];
+    const existingIds = new Set(tasks.map((task) => task.calendarEventId).filter(Boolean));
+    const newTasks = items
+      .filter((event) => event.id && !existingIds.has(event.id))
+      .map(buildTaskFromCalendarEvent)
+      .filter(Boolean);
+    if (newTasks.length === 0) {
+      setCalendarStatus("No new events to import.");
+      elements.importCalendarBtn.disabled = false;
+      return;
+    }
+    tasks = [...tasks, ...newTasks];
+    saveTasks();
+    renderTasks();
+    updateCurrentTask();
+    setCalendarStatus(`Imported ${newTasks.length} event${newTasks.length === 1 ? "" : "s"}.`);
+  } catch (error) {
+    setCalendarStatus("Calendar import failed.");
+  }
+  elements.importCalendarBtn.disabled = false;
 };
 
 const setTaskType = (type) => {
@@ -1355,6 +1464,13 @@ elements.autoThemeBtn.addEventListener("click", () => {
 elements.openDashboardBtn.addEventListener("click", () => {
   chrome.tabs.create({ url: chrome.runtime.getURL("ui/dashboard/dashboard.html") });
 });
+
+if (elements.exportCalendarBtn) {
+  elements.exportCalendarBtn.addEventListener("click", exportTasksToGoogleCalendar);
+}
+if (elements.importCalendarBtn) {
+  elements.importCalendarBtn.addEventListener("click", importTasksFromGoogleCalendar);
+}
 
 elements.settingsBtn.addEventListener("click", () => {
   togglePanel(elements.settingsPanel);

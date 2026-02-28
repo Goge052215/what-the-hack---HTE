@@ -1,4 +1,5 @@
 const { addMinutes, formatTime, toDate, startOfDay, getHour } = require("../../shared/utils/time");
+const { createSchedulePlan } = require("./llmClient");
 
 const normalizeFocusScore = (value) => {
   if (!Number.isFinite(value)) return null;
@@ -81,6 +82,74 @@ const buildBlocks = (startTime, task, cycleConfig, state) => {
   return { blocks, endTime: cursor, pomodoroCount };
 };
 
+const normalizeTasks = (tasks = []) =>
+  tasks.map((task, index) => ({
+    title: String(task.title || task.description || task.name || `Task ${index + 1}`),
+    durationMin: Number.isFinite(task.durationMin)
+      ? task.durationMin
+      : Number.isFinite(task.duration)
+      ? task.duration
+      : 25,
+  }));
+
+const parseTimeString = (value) => {
+  if (!value || typeof value !== "string") return null;
+  const match = value.match(/^(\d{1,2}):(\d{2})$/);
+  if (!match) return null;
+  const hours = Number(match[1]);
+  const minutes = Number(match[2]);
+  if (!Number.isFinite(hours) || !Number.isFinite(minutes)) return null;
+  if (hours < 0 || hours > 23 || minutes < 0 || minutes > 59) return null;
+  const date = new Date();
+  date.setHours(hours, minutes, 0, 0);
+  return date;
+};
+
+const sanitizeSchedulePlan = (plan, fallbackStart) => {
+  if (!plan || !Array.isArray(plan.blocks) || plan.blocks.length === 0) return null;
+  const startTime = parseTimeString(plan.startTime) || parseTimeString(fallbackStart);
+  if (!startTime) return null;
+  const cycle = plan.cycle === "ultradian" ? "ultradian" : "pomodoro";
+  let cursor = new Date(startTime.getTime());
+  const blocks = plan.blocks
+    .map((block) => ({
+      start: typeof block.start === "string" ? block.start : null,
+      type: block.type === "break" ? "break" : "focus",
+      duration: Number(block.duration),
+      task: block.task ? String(block.task) : undefined,
+    }))
+    .filter((block) => Number.isFinite(block.duration) && block.duration > 0)
+    .map((block) => {
+      const parsedStart = parseTimeString(block.start);
+      const normalizedStart = parsedStart ? formatTime(parsedStart) : formatTime(cursor);
+      cursor = addMinutes(cursor, block.duration);
+      return { ...block, start: normalizedStart };
+    });
+  if (blocks.length === 0) return null;
+  const totalMinutes = blocks.reduce((sum, block) => sum + block.duration, 0);
+  return {
+    cycle,
+    startTime: formatTime(startTime),
+    blocks,
+    totalMinutes,
+  };
+};
+
+const buildSchedulePrompt = ({ tasks, focusHistory, cycle, startTime }) => {
+  const normalizedTasks = normalizeTasks(tasks);
+  const startAt = resolveStartTime(startTime, focusHistory);
+  const cycleLabel = cycle === "ultradian" ? "ultradian" : "pomodoro";
+  return [
+    "Create a schedule for today.",
+    'Return ONLY valid JSON with keys: "cycle", "startTime", "blocks", "totalMinutes".',
+    'Each block: {"start":"HH:MM","type":"focus|break","duration":number,"task":string?}.',
+    "Use 24-hour time. Ensure blocks are sequential and start at the given startTime.",
+    `Preferred cycle: ${cycleLabel}.`,
+    `Start time: ${formatTime(startAt)}.`,
+    `Tasks: ${JSON.stringify(normalizedTasks)}.`,
+  ].join("\n");
+};
+
 const generateSchedule = ({
   tasks = [],
   focusHistory = [],
@@ -110,4 +179,30 @@ const generateSchedule = ({
   };
 };
 
-module.exports = { generateSchedule };
+const generateScheduleWithLLM = async ({
+  tasks = [],
+  focusHistory = [],
+  cycle,
+  startTime,
+} = {}) => {
+  const prompt = buildSchedulePrompt({ tasks, focusHistory, cycle, startTime });
+  const fallback = generateSchedule({ tasks, focusHistory, cycle, startTime });
+  try {
+    const response = await createSchedulePlan(prompt);
+    if (!response.ok || !response.content) {
+      return fallback;
+    }
+    const cleaned = String(response.content)
+      .trim()
+      .replace(/^```(?:json)?/i, "")
+      .replace(/```$/i, "")
+      .trim();
+    const parsed = JSON.parse(cleaned);
+    const plan = sanitizeSchedulePlan(parsed, fallback.startTime);
+    return plan || fallback;
+  } catch {
+    return fallback;
+  }
+};
+
+module.exports = { generateSchedule, generateScheduleWithLLM };
