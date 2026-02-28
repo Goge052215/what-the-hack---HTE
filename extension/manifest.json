@@ -6,6 +6,9 @@
     "default_title": "Focus Tutor",
     "default_popup": "ui/popup/popup.html"
   },
+  "icons": {
+    "48": "icons/icon48.png"
+  },
   "background": {
     "service_worker": "background/serviceWorker.js"
   },

@@ -765,6 +765,7 @@ p {
   line-height: 1.6;
   color: var(--text-primary);
   margin: 8px 0 0;
+  white-space: pre-line;
 }
 
 .placeholder-text {

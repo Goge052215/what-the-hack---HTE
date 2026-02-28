@@ -18,13 +18,14 @@ const elements = {
   // addToCalendar: document.getElementById("addToCalendar"), // Disabled until Chrome Web Store publish
   typeAssignment: document.getElementById("typeAssignment"),
   typeExam: document.getElementById("typeExam"),
-  typeEvent: document.getElementById("typeEvent"),
+  typeTask: document.getElementById("typeTask"),
   // Streak Elements
   popupStreak: document.getElementById("popupStreak"),
   popupStreakIcon: document.getElementById("popupStreakIcon"),
   popupStreakCount: document.getElementById("popupStreakCount"),
   addTaskBtn: document.getElementById("addTaskBtn"),
   saveTaskBtn: document.getElementById("saveTaskBtn"),
+  currentTaskDisplay: document.getElementById("currentTaskDisplay"),
   currentTaskTitle: document.getElementById("currentTaskTitle"),
   progressContainer: document.getElementById("progressContainer"),
   progressBar: document.getElementById("progressBar"),
@@ -35,7 +36,12 @@ const elements = {
   statusCompleted: document.getElementById("statusCompleted"),
   subtasksContainer: document.getElementById("subtasksContainer"),
   subtasksStatus: document.getElementById("subtasksStatus"),
-  subtasksList: document.getElementById("subtasksList"),
+  assignmentList: document.getElementById("assignmentList"),
+  examList: document.getElementById("examList"),
+  taskList: document.getElementById("taskList"),
+  assignmentCount: document.getElementById("assignmentCount"),
+  examCount: document.getElementById("examCount"),
+  taskCountList: document.getElementById("taskCountList"),
   analysisStatus: document.getElementById("analysisStatus"),
   analysisScore: document.getElementById("analysisScore"),
   analysisMeta: document.getElementById("analysisMeta"),
@@ -60,6 +66,7 @@ const elements = {
   timerTime: document.getElementById("timerTime"),
   timerStartBtn: document.getElementById("timerStartBtn"),
   timerPauseBtn: document.getElementById("timerPauseBtn"),
+  timerSkipBtn: document.getElementById("timerSkipBtn"),
   timerResetBtn: document.getElementById("timerResetBtn"),
   pomodoroModeBtn: document.getElementById("pomodoroModeBtn"),
   customModeBtn: document.getElementById("customModeBtn"),
@@ -288,6 +295,7 @@ const updateTimerDisplay = () => {
   elements.timerTime.textContent = formatTime(timerState.timeRemaining);
   elements.timerMode.textContent = timerState.phase === "focus" ? "Focus" : "Rest";
   elements.timerMode.className = `timer-mode ${timerState.phase}`;
+  elements.timerSkipBtn.style.display = timerState.phase === "rest" ? "flex" : "none";
 };
 
 const saveTimerState = () => {
@@ -413,10 +421,11 @@ const completeTimerPhase = (startTime, phase) => {
   if (notificationSettings.enabled) {
     chrome.notifications.create({
       type: 'basic',
-      iconUrl: chrome.runtime.getURL('icon.png'),
+      iconUrl: chrome.runtime.getURL('icons/icon48.png'),
       title: phase === "focus" ? "Focus Session Complete!" : "Break Complete!",
       message: phase === "focus" ? "Time for a break!" : "Ready to focus again?",
-      priority: 2
+      priority: 2,
+      requireInteraction: true
     });
   }
   
@@ -444,6 +453,22 @@ const completeTimerPhase = (startTime, phase) => {
   timerState.startedAt = null;
   timerState.baseRemaining = null;
   timerState.isRunning = false;
+  applyTimerButtons();
+  saveTimerState();
+};
+
+const skipBreak = () => {
+  if (timerState.phase !== "rest") return;
+  pauseTimer();
+  timerState.phase = "focus";
+  const focusDuration = timerState.mode === "pomodoro" 
+    ? timerConfig.pomodoro.focus 
+    : timerConfig.custom.focus;
+  timerState.timeRemaining = focusDuration * 60;
+  timerState.startedAt = null;
+  timerState.baseRemaining = null;
+  timerState.isRunning = false;
+  updateTimerDisplay();
   applyTimerButtons();
   saveTimerState();
 };
@@ -623,13 +648,27 @@ const togglePanel = (panelToShow) => {
   });
 };
 
+const normalizeTaskType = (type) => {
+  if (type === "event") return "task";
+  return type || "task";
+};
+
 const updateTaskCount = () => {
-  elements.taskCount.textContent = tasks.length;
+  const remaining = tasks.filter((task) => !task.completed).length;
+  elements.taskCount.textContent = remaining;
 };
 
 const loadTasks = () => {
   chrome.storage.local.get(["tasks"], (result) => {
-    tasks = result.tasks || [];
+    let migrated = false;
+    tasks = (result.tasks || []).map((task) => {
+      const type = normalizeTaskType(task.type);
+      if (type !== task.type) migrated = true;
+      return { ...task, type };
+    });
+    if (migrated) {
+      saveTasks();
+    }
     renderTasks();
     updateTaskCount();
   });
@@ -654,10 +693,11 @@ const addTask = async () => {
     deadline = `${deadlineDate}T${timeStr}`;
   }
 
+  const taskType = normalizeTaskType(selectedTaskType);
   const newTask = {
     id: Date.now().toString(),
     description,
-    type: selectedTaskType,
+    type: taskType,
     deadline: deadline,
     status: "not-started",
     completed: false,
@@ -682,7 +722,7 @@ const addTask = async () => {
   try {
     const response = await apiRequest("/api/tasks", {
       method: "POST",
-      body: { description, type: selectedTaskType, deadline },
+      body: { description, type: taskType, deadline },
     });
     if (response.ok && response.data?.subtasks) {
       // Could update task with subtasks if needed
@@ -698,7 +738,6 @@ const addToGoogleCalendar = async (task) => {
     const token = await new Promise((resolve, reject) => {
       chrome.identity.getAuthToken({ interactive: true }, (token) => {
         if (chrome.runtime.lastError) {
-          console.error("OAuth error:", chrome.runtime.lastError);
           reject(chrome.runtime.lastError);
         } else {
           resolve(token);
@@ -707,13 +746,12 @@ const addToGoogleCalendar = async (task) => {
     });
 
     if (!token) {
-      console.error("No token received");
       return false;
     }
 
     // Prepare event data
     const deadline = new Date(task.deadline);
-    const typeEmoji = task.type === "assignment" ? "📝" : task.type === "exam" ? "�" : "📅";
+    const typeEmoji = task.type === "assignment" ? "📝" : task.type === "exam" ? "📝" : "📌";
     const eventData = {
       summary: `${typeEmoji} ${task.description}`,
       description: `Task Type: ${task.type}\nCreated from Focus Tutor Extension`,
@@ -734,8 +772,6 @@ const addToGoogleCalendar = async (task) => {
       },
     };
 
-    console.log("Creating calendar event:", eventData);
-
     // Create calendar event
     const response = await fetch("https://www.googleapis.com/calendar/v3/calendars/primary/events", {
       method: "POST",
@@ -747,32 +783,29 @@ const addToGoogleCalendar = async (task) => {
     });
 
     if (response.ok) {
-      const result = await response.json();
-      console.log("Event added to Google Calendar successfully:", result);
+      await response.json();
       return true;
     } else {
-      const error = await response.text();
-      console.error("Failed to add event to Google Calendar:", error);
+      await response.text();
       return false;
     }
   } catch (error) {
-    console.error("Error adding to Google Calendar:", error);
     return false;
   }
 };
 
 const setTaskType = (type) => {
-  selectedTaskType = type;
-  [elements.typeAssignment, elements.typeExam, elements.typeEvent].forEach((btn) => {
+  selectedTaskType = normalizeTaskType(type);
+  [elements.typeAssignment, elements.typeExam, elements.typeTask].forEach((btn) => {
     btn.classList.remove("active");
   });
   
-  if (type === "assignment") {
+  if (selectedTaskType === "assignment") {
     elements.typeAssignment.classList.add("active");
-  } else if (type === "exam") {
+  } else if (selectedTaskType === "exam") {
     elements.typeExam.classList.add("active");
-  } else if (type === "event") {
-    elements.typeEvent.classList.add("active");
+  } else {
+    elements.typeTask.classList.add("active");
   }
 };
 
@@ -796,12 +829,14 @@ const updateCurrentTask = () => {
   if (!activeTask) {
     elements.currentTaskTitle.textContent = "No active task";
     elements.progressContainer.style.display = "none";
+    elements.currentTaskDisplay.classList.remove("compact");
     return;
   }
 
   currentTaskIndex = tasks.indexOf(activeTask);
   elements.currentTaskTitle.textContent = activeTask.description;
   elements.progressContainer.style.display = "block";
+  elements.currentTaskDisplay.classList.add("compact");
   
   // Update progress bar and status buttons
   const status = activeTask.status || "not-started";
@@ -962,16 +997,8 @@ const deleteTask = (taskId) => {
   updateCurrentTask();
 };
 
-const renderTasks = () => {
-  if (tasks.length === 0) {
-    elements.subtasksStatus.style.display = "block";
-    elements.subtasksStatus.textContent = "No tasks yet";
-    elements.subtasksList.innerHTML = "";
-    return;
-  }
-
-  elements.subtasksStatus.style.display = "none";
-  elements.subtasksList.innerHTML = tasks
+const renderTaskList = (listEl, items) => {
+  listEl.innerHTML = items
     .map(
       (task) => `
       <li>
@@ -988,6 +1015,28 @@ const renderTasks = () => {
     `
     )
     .join("");
+};
+
+const renderTasks = () => {
+  const assignments = tasks.filter((task) => task.type === "assignment");
+  const exams = tasks.filter((task) => task.type === "exam");
+  const misc = tasks.filter((task) => task.type === "task" || !task.type);
+
+  elements.assignmentCount.textContent = assignments.length;
+  elements.examCount.textContent = exams.length;
+  elements.taskCountList.textContent = misc.length;
+
+  renderTaskList(elements.assignmentList, assignments);
+  renderTaskList(elements.examList, exams);
+  renderTaskList(elements.taskList, misc);
+
+  const total = assignments.length + exams.length + misc.length;
+  if (total === 0) {
+    elements.subtasksStatus.style.display = "block";
+    elements.subtasksStatus.textContent = "No tasks yet";
+  } else {
+    elements.subtasksStatus.style.display = "none";
+  }
 
   document.querySelectorAll('.task-list input[type="checkbox"]').forEach((checkbox) => {
     checkbox.addEventListener("change", (e) => {
@@ -1255,8 +1304,8 @@ elements.typeExam.addEventListener("click", () => {
   setTaskType("exam");
 });
 
-elements.typeEvent.addEventListener("click", () => {
-  setTaskType("event");
+elements.typeTask.addEventListener("click", () => {
+  setTaskType("task");
 });
 
 // Notification settings event listeners
@@ -1280,6 +1329,7 @@ document.querySelectorAll(".palette-dot-btn").forEach((btn) => {
 // Timer event listeners
 elements.timerStartBtn.addEventListener("click", startTimer);
 elements.timerPauseBtn.addEventListener("click", pauseTimer);
+elements.timerSkipBtn.addEventListener("click", skipBreak);
 elements.timerResetBtn.addEventListener("click", resetTimer);
 
 elements.pomodoroModeBtn.addEventListener("click", () => setTimerMode("pomodoro"));
