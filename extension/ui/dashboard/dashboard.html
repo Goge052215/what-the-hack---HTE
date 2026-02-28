@@ -17,7 +17,34 @@
             <h1>Focus Tutor Dashboard</h1>
             <p id="summary">Loading...</p>
           </div>
-          <button id="themeToggle" class="theme-toggle" aria-label="Toggle theme">☀️</button>
+          <div class="header-actions">
+            <div class="palette-picker">
+              <button id="paletteToggle" class="palette-toggle" aria-label="Change color palette" aria-haspopup="true" aria-expanded="false">🎨</button>
+              <div id="paletteMenu" class="palette-menu" role="menu" aria-label="Color palette" hidden>
+                <button class="palette-swatch" role="menuitem" data-palette="slate" aria-label="Slate">
+                  <span class="swatch-dot" style="--swatch:#a8b5c8"></span>
+                  <span class="swatch-name">Slate</span>
+                </button>
+                <button class="palette-swatch" role="menuitem" data-palette="ocean" aria-label="Ocean">
+                  <span class="swatch-dot" style="--swatch:#4f8bd6"></span>
+                  <span class="swatch-name">Ocean</span>
+                </button>
+                <button class="palette-swatch" role="menuitem" data-palette="lavender" aria-label="Lavender">
+                  <span class="swatch-dot" style="--swatch:#9b7ad9"></span>
+                  <span class="swatch-name">Lavender</span>
+                </button>
+                <button class="palette-swatch" role="menuitem" data-palette="mint" aria-label="Mint">
+                  <span class="swatch-dot" style="--swatch:#3aa97a"></span>
+                  <span class="swatch-name">Mint</span>
+                </button>
+                <button class="palette-swatch" role="menuitem" data-palette="sunset" aria-label="Sunset">
+                  <span class="swatch-dot" style="--swatch:#e07b5f"></span>
+                  <span class="swatch-name">Sunset</span>
+                </button>
+              </div>
+            </div>
+            <button id="themeToggle" class="theme-toggle" aria-label="Toggle theme">☀️</button>
+          </div>
         </div>
       </header>
 

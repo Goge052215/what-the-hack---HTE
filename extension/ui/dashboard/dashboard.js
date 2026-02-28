@@ -27,9 +27,12 @@ const elements = {
   currentSessionTime: document.getElementById("currentSessionTime"),
   breakRecommendation: document.getElementById("breakRecommendation"),
   recoveryEfficiencyBar: document.getElementById("recoveryEfficiencyBar"),
+  paletteToggle: document.getElementById("paletteToggle"),
+  paletteMenu: document.getElementById("paletteMenu"),
 };
 
 let tasks = [];
+let currentPaletteId = "slate";
 let dailyStats = {
   date: new Date().toDateString(),
   studyMinutes: 0,
@@ -41,10 +44,100 @@ let sessionState = {
   isFocused: false,
 };
 
+const palettes = {
+  slate: {
+    light: { accent: "#a8b5c8", accentHover: "#8fa3bc", study: "#7b9acc", entertainment: "#e09f9f" },
+    dark: { accent: "#9ca8ba", accentHover: "#b4bfce", study: "#5a7ab0", entertainment: "#c07f7f" },
+  },
+  ocean: {
+    light: { accent: "#4f8bd6", accentHover: "#3b76c0", study: "#4f8bd6", entertainment: "#e09f9f" },
+    dark: { accent: "#6ea6e3", accentHover: "#88b6ea", study: "#6ea6e3", entertainment: "#c07f7f" },
+  },
+  lavender: {
+    light: { accent: "#9b7ad9", accentHover: "#8462c3", study: "#9b7ad9", entertainment: "#e09f9f" },
+    dark: { accent: "#b79cf0", accentHover: "#c9b1f5", study: "#b79cf0", entertainment: "#c07f7f" },
+  },
+  mint: {
+    light: { accent: "#3aa97a", accentHover: "#2e9468", study: "#3aa97a", entertainment: "#e09f9f" },
+    dark: { accent: "#59c892", accentHover: "#73d6a6", study: "#59c892", entertainment: "#c07f7f" },
+  },
+  sunset: {
+    light: { accent: "#e07b5f", accentHover: "#c9654d", study: "#7b9acc", entertainment: "#e07b5f" },
+    dark: { accent: "#f2a08c", accentHover: "#f6b1a1", study: "#6ea6e3", entertainment: "#f2a08c" },
+  },
+};
+
+const applyPalette = (paletteId) => {
+  const palette = palettes[paletteId] || palettes.slate;
+  const isDark = document.body.classList.contains("dark-theme");
+  const colors = isDark ? palette.dark : palette.light;
+  const root = document.documentElement;
+
+  root.style.setProperty("--accent", colors.accent);
+  root.style.setProperty("--accent-hover", colors.accentHover);
+  root.style.setProperty("--study-color", colors.study);
+  root.style.setProperty("--entertainment-color", colors.entertainment);
+
+  if (elements.paletteToggle) {
+    elements.paletteToggle.style.borderColor = colors.accent;
+  }
+};
+
+const setPalette = async (paletteId) => {
+  currentPaletteId = paletteId;
+  applyPalette(paletteId);
+  chrome.storage.local.set({ palette: paletteId });
+  updatePaletteMenuSelection();
+};
+
+const updatePaletteMenuSelection = () => {
+  if (!elements.paletteMenu) return;
+  const swatches = elements.paletteMenu.querySelectorAll(".palette-swatch");
+  swatches.forEach((btn) => {
+    const id = btn.getAttribute("data-palette");
+    if (id === currentPaletteId) {
+      btn.setAttribute("aria-checked", "true");
+    } else {
+      btn.removeAttribute("aria-checked");
+    }
+  });
+};
+
+const closePaletteMenu = () => {
+  if (!elements.paletteMenu || !elements.paletteToggle) return;
+  elements.paletteMenu.hidden = true;
+  elements.paletteToggle.setAttribute("aria-expanded", "false");
+};
+
+const togglePaletteMenu = () => {
+  if (!elements.paletteMenu || !elements.paletteToggle) return;
+  const nextHidden = !elements.paletteMenu.hidden;
+  elements.paletteMenu.hidden = nextHidden;
+  elements.paletteToggle.setAttribute("aria-expanded", nextHidden ? "false" : "true");
+  if (!nextHidden) {
+    updatePaletteMenuSelection();
+  }
+};
+
+const loadPalette = async () => {
+  return new Promise((resolve) => {
+    chrome.storage.local.get(["palette"], (result) => {
+      const paletteId = result.palette || "slate";
+      currentPaletteId = paletteId;
+      applyPalette(paletteId);
+      updatePaletteMenuSelection();
+      resolve(paletteId);
+    });
+  });
+};
+
 const loadTheme = () => {
-  chrome.storage.local.get(["theme"], (result) => {
-    const theme = result.theme || "light";
-    applyTheme(theme);
+  return new Promise((resolve) => {
+    chrome.storage.local.get(["theme"], (result) => {
+      const theme = result.theme || "light";
+      applyTheme(theme);
+      resolve(theme);
+    });
   });
 };
 
@@ -56,6 +149,7 @@ const applyTheme = (theme) => {
     document.body.classList.remove("dark-theme");
     elements.themeToggle.textContent = "☀️";
   }
+  applyPalette(currentPaletteId);
 };
 
 const toggleTheme = () => {
@@ -375,7 +469,8 @@ const analyzeTabs = async () => {
 };
 
 const init = async () => {
-  loadTheme();
+  await loadTheme();
+  await loadPalette();
   await loadDailyStats();
   await loadTasks();
   await analyzeTabs();
@@ -389,5 +484,34 @@ elements.newTaskInput.addEventListener("keypress", (e) => {
   }
 });
 elements.themeToggle.addEventListener("click", toggleTheme);
+if (elements.paletteToggle && elements.paletteMenu) {
+  elements.paletteToggle.addEventListener("click", (e) => {
+    e.stopPropagation();
+    togglePaletteMenu();
+  });
+
+  elements.paletteMenu.querySelectorAll(".palette-swatch").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const paletteId = btn.getAttribute("data-palette");
+      if (paletteId) {
+        setPalette(paletteId);
+        closePaletteMenu();
+      }
+    });
+  });
+
+  document.addEventListener("click", (e) => {
+    const target = e.target;
+    if (!(target instanceof Element)) return;
+    if (elements.paletteMenu.contains(target) || elements.paletteToggle.contains(target)) return;
+    closePaletteMenu();
+  });
+
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape") {
+      closePaletteMenu();
+    }
+  });
+}
 
 init();
