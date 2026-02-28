@@ -1,7 +1,6 @@
 importScripts("storage.js", "messaging.js", "alarms.js");
 
-const hostedApiBaseUrl = "https://api.focus-tutor.app";
-const localApiBaseUrl = "http://localhost:5174";
+// hostedApiBaseUrl and localApiBaseUrl are defined in alarms.js
 const notificationIcon = chrome.runtime.getURL("icons/icon48.png");
 const aiSuggestionAlarmName = "ai-suggestion-refresh";
 const aiSuggestionRefreshMinutes = 15;

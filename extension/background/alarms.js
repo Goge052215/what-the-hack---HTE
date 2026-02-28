@@ -8,6 +8,7 @@ FocusPet.AlarmNames = {
 
 var hostedApiBaseUrl = "https://api.focus-tutor.app";
 var localApiBaseUrl = "http://localhost:5174";
+var focusPetIconUrl = chrome.runtime.getURL("icons/icon48.png");
 
 FocusPet.Alarms = {
   startFocusSession: function (durationMins) {
@@ -26,7 +27,7 @@ FocusPet.Alarms = {
       if (settings.enableNotifications) {
         chrome.notifications.create("session_start_" + Date.now(), {
           type: "basic",
-          iconUrl: "icons/icon48.png",
+          iconUrl: focusPetIconUrl,
           title: "FocusPet - Session Started",
           message: "Focus session started. Stay on track!",
           priority: 1
@@ -96,7 +97,7 @@ FocusPet.Alarms = {
         if (settings.enableNotifications) {
           chrome.notifications.create("break_" + Date.now(), {
             type: "basic",
-            iconUrl: "icons/icon48.png",
+            iconUrl: focusPetIconUrl,
             title: "FocusPet - Break Time!",
             message: session && session.taskName
               ? 'Great work on "' + session.taskName + '"! Take a short break.'
@@ -138,7 +139,7 @@ FocusPet.Alarms = {
             if (settings.enableNotifications) {
               chrome.notifications.create("focus_" + Date.now(), {
                 type: "basic",
-                iconUrl: "icons/icon48.png",
+                iconUrl: focusPetIconUrl,
                 title: "FocusPet - Stay Focused!",
                 message: result.message || "You seem to be off-task. Time to refocus!"
               });

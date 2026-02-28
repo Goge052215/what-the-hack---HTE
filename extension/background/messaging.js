@@ -1,4 +1,5 @@
 var FocusPet = self.FocusPet || {};
+var focusPetIconUrl = chrome.runtime.getURL("icons/icon48.png");
 
 FocusPet.MessageTypes = {
   TAB_DATA: "TAB_DATA",
@@ -108,7 +109,7 @@ FocusPet.Messaging = {
               if (settings.enableNotifications) {
                 chrome.notifications.create("session_end_" + Date.now(), {
                   type: "basic",
-                  iconUrl: "icons/icon48.png",
+                  iconUrl: focusPetIconUrl,
                   title: "FocusPet - Session Ended",
                   message: session.taskName
                     ? 'Session ended for "' + session.taskName + '".'
@@ -142,7 +143,7 @@ FocusPet.Messaging = {
             if (settings.enableNotifications) {
               chrome.notifications.create("focus_" + Date.now(), {
                 type: "basic",
-                iconUrl: "icons/icon48.png",
+                iconUrl: focusPetIconUrl,
                 title: "FocusPet - Stay on Track!",
                 message: "It looks like you might be distracted. Want to get back to your task?"
               });
