@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="stylesheet" href="dashboard.css" />
+    <title>Focus Tutor Dashboard</title>
+  </head>
+  <body>
+    <main class="layout">
+      <h1>Focus Tutor Dashboard</h1>
+      <p id="summary">Loading...</p>
+      <section class="card">
+        <h2>Tab Focus Analysis</h2>
+        <p id="analysisStatus">Waiting for analysis...</p>
+        <p id="analysisScore">Focus score: --</p>
+        <p id="analysisMeta">Tabs analyzed: --</p>
+      </section>
+      <section class="card">
+        <h2>Focus Quality Report</h2>
+        <p id="reportDate">Date: --</p>
+        <div class="metrics">
+          <div class="metric">
+            <span>Focus Time Ratio</span>
+            <strong id="focusRatio">--</strong>
+          </div>
+          <div class="metric">
+            <span>Average Continuous Focus</span>
+            <strong id="averageFocus">--</strong>
+          </div>
+          <div class="metric">
+            <span>Distraction Count</span>
+            <strong id="distractionCount">--</strong>
+          </div>
+          <div class="metric">
+            <span>Task Switching Rate</span>
+            <strong id="switchRate">--</strong>
+          </div>
+        </div>
+        <div class="metric">
+          <span>High-Efficiency Hours</span>
+          <ul id="efficiencyList" class="compact-list"></ul>
+        </div>
+      </section>
+    </main>
+    <script type="module" src="dashboard.js"></script>
+  </body>
+</html>
