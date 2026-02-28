@@ -58,7 +58,7 @@
         <div class="task-type-selector">
           <button id="typeAssignment" class="task-type-btn active" data-type="assignment">📝 Assignment</button>
           <button id="typeExam" class="task-type-btn" data-type="exam">📝 Exam</button>
-          <button id="typeEvent" class="task-type-btn" data-type="event">📅 Event</button>
+          <button id="typeTask" class="task-type-btn" data-type="task">📌 Task</button>
         </div>
         
         <label for="taskDeadlineDate">Deadline</label>
@@ -278,7 +278,29 @@
         <h3>Your Tasks</h3>
         <div id="subtasksContainer">
           <p id="subtasksStatus">No tasks yet</p>
-          <ul id="subtasksList" class="task-list"></ul>
+          <div class="task-bins">
+            <div class="task-bin">
+              <div class="task-bin-header">
+                <span>Assignments</span>
+                <span id="assignmentCount" class="task-bin-count">0</span>
+              </div>
+              <ul id="assignmentList" class="task-list"></ul>
+            </div>
+            <div class="task-bin">
+              <div class="task-bin-header">
+                <span>Exams</span>
+                <span id="examCount" class="task-bin-count">0</span>
+              </div>
+              <ul id="examList" class="task-list"></ul>
+            </div>
+            <div class="task-bin">
+              <div class="task-bin-header">
+                <span>Tasks</span>
+                <span id="taskCountList" class="task-bin-count">0</span>
+              </div>
+              <ul id="taskList" class="task-list"></ul>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -291,6 +313,7 @@
         <div class="timer-controls">
           <button id="timerStartBtn" class="timer-btn">▶</button>
           <button id="timerPauseBtn" class="timer-btn" style="display: none;">⏸</button>
+          <button id="timerSkipBtn" class="timer-btn" style="display: none;">⏭</button>
           <button id="timerResetBtn" class="timer-btn">🔄</button>
         </div>
       </div>

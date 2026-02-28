@@ -1,8 +1,7 @@
 importScripts("storage.js", "messaging.js", "alarms.js");
 
 const defaultApiBaseUrl = "http://localhost:5174";
-const notificationIcon =
-  "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='128' height='128'><rect width='128' height='128' fill='%230f172a'/><text x='64' y='78' font-size='64' text-anchor='middle' fill='white'>F</text></svg>";
+const notificationIcon = chrome.runtime.getURL("icons/icon48.png");
 
 const getStored = (keys) =>
   new Promise((resolve) => {
@@ -252,6 +251,16 @@ chrome.alarms.onAlarm.addListener(async (alarm) => {
     notify("Time to rest", `Take a ${block.duration}-minute break.`);
     return;
   }
+  if (alarm?.name === "break-return") {
+    if (!breakStartTime) return;
+    showNotification(
+      "return-to-work",
+      "🎯 Break's over!",
+      "Time to get back to work. You're refreshed and ready to focus!"
+    );
+    breakStartTime = null;
+    return;
+  }
   if (alarm?.name && alarm.name.startsWith("break")) {
     recordSession({ durationMin: 10, breakTaken: true });
     return;
@@ -296,21 +305,17 @@ async function getTasks() {
 }
 
 function showNotification(id, title, message, buttons = []) {
-  // Use data URL for icon since we don't have icon files
-  const iconUrl = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==';
-  
   chrome.notifications.create(id, {
     type: "basic",
-    iconUrl: iconUrl,
+    iconUrl: notificationIcon,
     title: title,
     message: message,
     buttons: buttons,
-    priority: 2
-  }, (notificationId) => {
+    priority: 2,
+    requireInteraction: true
+  }, () => {
     if (chrome.runtime.lastError) {
-      console.error('Notification error:', chrome.runtime.lastError);
-    } else {
-      console.log('Notification created:', notificationId);
+      return;
     }
   });
 }
@@ -380,22 +385,11 @@ chrome.notifications.onButtonClicked.addListener((notificationId, buttonIndex) =
       focusStartTime = null;
       breakStartTime = Date.now();
       chrome.notifications.clear(notificationId);
-      
-      // Schedule return-to-work notification after break duration
-      setTimeout(() => {
-        if (breakStartTime) {
-          showNotification(
-            "return-to-work",
-            "🎯 Break's over!",
-            "Time to get back to work. You're refreshed and ready to focus!"
-          );
-          breakStartTime = null;
-        }
-      }, breakDuration);
-      
+      chrome.alarms.create("break-return", { delayInMinutes: breakDuration / 60000 });
     } else if (buttonIndex === 1) {
       // Keep Working - reset timer
       focusStartTime = Date.now();
+      breakStartTime = null;
       chrome.notifications.clear(notificationId);
     }
   }

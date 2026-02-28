@@ -59,6 +59,8 @@ let streakData = {
   lastActiveDate: null,
   isActive: false
 };
+let insightCache = null;
+let insightRequest = null;
 
 const palettes = {
   slate: {
@@ -414,6 +416,50 @@ const updateBehavioralUI = () => {
   }
 };
 
+const loadInsightCache = () => {
+  return new Promise((resolve) => {
+    chrome.storage.local.get(["aiInsightCache"], (result) => {
+      resolve(result.aiInsightCache || null);
+    });
+  });
+};
+
+const storeInsightCache = (payload) => {
+  chrome.storage.local.set({ aiInsightCache: payload });
+};
+
+const getInsightForToday = async () => {
+  const day = new Date().toISOString().slice(0, 10);
+  if (insightCache?.day === day && insightCache?.text) {
+    return insightCache;
+  }
+  const stored = await loadInsightCache();
+  if (stored?.day === day && stored?.text) {
+    insightCache = stored;
+    return stored;
+  }
+  if (insightRequest) {
+    return insightRequest;
+  }
+  insightRequest = (async () => {
+    try {
+      const response = await apiRequest(`/api/analyze/insight?day=${day}`, { method: "GET" });
+      if (response.ok && response.data?.insight) {
+        const payload = { day, text: response.data.insight, source: response.data.source };
+        insightCache = payload;
+        storeInsightCache(payload);
+        return payload;
+      }
+    } catch {
+      return null;
+    }
+    return null;
+  })();
+  const result = await insightRequest;
+  insightRequest = null;
+  return result;
+};
+
 const calculatePeakHour = () => {
   let maxScore = -1;
   let bestHour = null;
@@ -691,17 +737,14 @@ const displaySessionHistory = (sessions) => {
   }).join('');
 };
 
-const checkForAIInsights = (sessions) => {
-  // Show AI insights if user has at least 5 focus sessions
+const checkForAIInsights = async (sessions) => {
   const focusSessions = sessions.filter(s => s.phase === "focus");
   
   if (focusSessions.length >= 5) {
     elements.aiInsights.style.display = "block";
     
-    // Calculate patterns for AI analysis
     const patterns = analyzeSessionPatterns(focusSessions);
     
-    // Generate insight text (placeholder for Person 2's AI integration)
     let insightText = "Based on your focus sessions:\n\n";
     
     if (patterns.preferredDuration) {
@@ -716,7 +759,12 @@ const checkForAIInsights = (sessions) => {
       insightText += `• You maintain ${patterns.consistency} session consistency.\n`;
     }
     
-    insightText += `\n💡 AI Feedback Integration Point: This data is ready for Person 2's learning style analysis to provide personalized recommendations.`;
+    const insight = await getInsightForToday();
+    if (insight?.text) {
+      insightText += `\nAI Insight: ${insight.text}`;
+    } else {
+      insightText += "\nAI Insight: Retrieving your learning insight...";
+    }
     
     elements.aiInsightText.textContent = insightText;
   }
@@ -760,7 +808,6 @@ const init = async () => {
   setInterval(analyzeTabs, 30000);
 };
 
-init();
 
 elements.addTaskBtn.addEventListener("click", addTask);
 elements.newTaskInput.addEventListener("keypress", (e) => {
