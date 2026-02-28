@@ -15,6 +15,7 @@
   --error: #c8a8a8;
   --study-color: #7b9acc;
   --entertainment-color: #e09f9f;
+  --font-primary: 'Quicksand', 'Apple Color Emoji', 'Segoe UI Emoji', 'Noto Color Emoji', sans-serif;
 }
 
 body.dark-theme {
@@ -35,7 +36,7 @@ body.dark-theme {
 
 body {
   margin: 0;
-  font-family: 'Quicksand', sans-serif;
+  font-family: var(--font-primary);
   background: var(--bg-primary);
   color: var(--text-primary);
   transition: background 0.3s ease, color 0.3s ease;
