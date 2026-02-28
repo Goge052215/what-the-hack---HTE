@@ -54,6 +54,35 @@ const createMinimaxInsight = async (prompt) => {
   return { ok: true, content };
 };
 
+const createMinimaxCompletion = async ({
+  prompt,
+  system,
+  temperature = 0.2,
+  max_tokens = 600,
+} = {}) => {
+  if (!env.minimaxKey) return { ok: false, error: "missing_key" };
+  const response = await fetch(`${env.minimaxBaseUrl}/v1/text/chatcompletion_v2`, {
+    method: "POST",
+    headers: buildMinimaxHeaders(),
+    body: JSON.stringify({
+      model: env.minimaxModel,
+      messages: [
+        { role: "system", name: "MiniMax AI", content: system || "You are a helpful assistant." },
+        { role: "user", name: "User", content: prompt || "" },
+      ],
+      temperature,
+      max_tokens,
+    }),
+  });
+  if (!response.ok) {
+    return { ok: false, error: "request_failed" };
+  }
+  const payload = await response.json();
+  const content = extractMinimaxContent(payload);
+  if (!content) return { ok: false, error: "empty_response" };
+  return { ok: true, content };
+};
+
 const createAnthropicInsight = async (prompt) => {
   if (!hasAnthropicKey()) return { ok: false, error: "missing_key" };
   if (env.usePythonAnthropic) {
@@ -165,4 +194,13 @@ const createInsight = async (prompt) => {
   return createMinimaxInsight(prompt);
 };
 
-module.exports = { createInsight };
+const createSchedulePlan = async (prompt) => {
+  return createMinimaxCompletion({
+    prompt,
+    system: "You are a scheduling assistant that outputs only valid JSON.",
+    temperature: 0.2,
+    max_tokens: 700,
+  });
+};
+
+module.exports = { createInsight, createSchedulePlan };
