@@ -17,7 +17,6 @@
       "https://www.googleapis.com/auth/calendar.events"
     ]
   },
-  "key": "CHROME_WEB_STORE_WILL_PROVIDE_THIS",
   "content_security_policy": {
     "extension_pages": "script-src 'self'; object-src 'self'"
   }
