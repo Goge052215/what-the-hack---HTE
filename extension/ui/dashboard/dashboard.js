@@ -151,6 +151,114 @@ const palettes = {
       bgTertiary: "#443c38"
     },
   },
+  custom: {
+    light: { 
+      accent: "#a8b5c8", 
+      accentHover: "#8fa3bc", 
+      study: "#7b9acc", 
+      entertainment: "#e09f9f",
+      bgPrimary: "#fafafa", 
+      bgSecondary: "#f5f5f5", 
+      bgTertiary: "#ececec" 
+    },
+    dark: { 
+      accent: "#9ca8ba", 
+      accentHover: "#b4bfce", 
+      study: "#5a7ab0", 
+      entertainment: "#c07f7f",
+      bgPrimary: "#2a2a2e", 
+      bgSecondary: "#35353a", 
+      bgTertiary: "#404046" 
+    },
+  },
+};
+
+// Color manipulation functions for custom palette
+const hexToRgb = (hex) => {
+  const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+  return result ? {
+    r: parseInt(result[1], 16),
+    g: parseInt(result[2], 16),
+    b: parseInt(result[3], 16)
+  } : null;
+};
+
+const rgbToHex = (r, g, b) => {
+  return "#" + [r, g, b].map(x => {
+    const hex = x.toString(16);
+    return hex.length === 1 ? "0" + hex : hex;
+  }).join('');
+};
+
+const darkenColor = (hex, percent) => {
+  const rgb = hexToRgb(hex);
+  if (!rgb) return hex;
+  
+  const factor = (100 - percent) / 100;
+  return rgbToHex(
+    Math.round(rgb.r * factor),
+    Math.round(rgb.g * factor),
+    Math.round(rgb.b * factor)
+  );
+};
+
+const lightenColor = (hex, percent) => {
+  const rgb = hexToRgb(hex);
+  if (!rgb) return hex;
+  
+  const factor = percent / 100;
+  return rgbToHex(
+    Math.min(255, Math.round(rgb.r + (255 - rgb.r) * factor)),
+    Math.min(255, Math.round(rgb.g + (255 - rgb.g) * factor)),
+    Math.min(255, Math.round(rgb.b + (255 - rgb.b) * factor))
+  );
+};
+
+const generateCustomPalette = (baseColor) => {
+  const accentHover = darkenColor(baseColor, 15);
+  
+  // Generate light theme backgrounds with subtle tint
+  const bgPrimaryLight = lightenColor(baseColor, 95);
+  const bgSecondaryLight = lightenColor(baseColor, 90);
+  const bgTertiaryLight = lightenColor(baseColor, 85);
+  
+  // Generate dark theme - darker versions of the base color
+  const bgPrimaryDark = darkenColor(baseColor, 85);
+  const bgSecondaryDark = darkenColor(baseColor, 80);
+  const bgTertiaryDark = darkenColor(baseColor, 75);
+  const accentDark = lightenColor(baseColor, 10);
+  const accentHoverDark = lightenColor(baseColor, 20);
+  
+  // Use base color for study, slightly warmer tone for entertainment
+  const studyColor = baseColor;
+  const entertainmentRgb = hexToRgb(baseColor);
+  const entertainmentColor = entertainmentRgb ? 
+    rgbToHex(
+      Math.min(255, entertainmentRgb.r + 30),
+      Math.max(0, entertainmentRgb.g - 10),
+      Math.max(0, entertainmentRgb.b - 10)
+    ) : baseColor;
+  
+  palettes.custom = {
+    light: {
+      accent: baseColor,
+      accentHover: accentHover,
+      study: studyColor,
+      entertainment: entertainmentColor,
+      bgPrimary: bgPrimaryLight,
+      bgSecondary: bgSecondaryLight,
+      bgTertiary: bgTertiaryLight
+    },
+    dark: {
+      accent: accentDark,
+      accentHover: accentHoverDark,
+      study: lightenColor(studyColor, 10),
+      entertainment: darkenColor(entertainmentColor, 10),
+      bgPrimary: bgPrimaryDark,
+      bgSecondary: bgSecondaryDark,
+      bgTertiary: bgTertiaryDark
+    }
+  };
 };
 
 const applyPalette = (paletteId) => {
@@ -210,9 +318,15 @@ const togglePaletteMenu = () => {
 
 const loadPalette = async () => {
   return new Promise((resolve) => {
-    chrome.storage.local.get(["palette"], (result) => {
+    chrome.storage.local.get(["palette", "customColor"], (result) => {
       const paletteId = result.palette || "slate";
       currentPaletteId = paletteId;
+      
+      // If custom palette, load the custom color and regenerate palette
+      if (paletteId === "custom" && result.customColor) {
+        generateCustomPalette(result.customColor);
+      }
+      
       applyPalette(paletteId);
       updatePaletteMenuSelection();
       resolve(paletteId);
@@ -690,6 +804,49 @@ const init = async () => {
 };
 
 init();
+
+// Listen for storage changes to sync palette and theme from popup
+chrome.storage.onChanged.addListener((changes, namespace) => {
+  if (namespace === 'local') {
+    if (changes.palette) {
+      const newPaletteId = changes.palette.newValue;
+      if (newPaletteId && newPaletteId !== currentPaletteId) {
+        currentPaletteId = newPaletteId;
+        
+        // If custom palette, also check for custom color
+        if (newPaletteId === "custom") {
+          chrome.storage.local.get(["customColor"], (result) => {
+            if (result.customColor) {
+              generateCustomPalette(result.customColor);
+            }
+            applyPalette(newPaletteId);
+            updatePaletteMenuSelection();
+          });
+        } else {
+          applyPalette(newPaletteId);
+          updatePaletteMenuSelection();
+        }
+      }
+    }
+    
+    if (changes.customColor && currentPaletteId === "custom") {
+      const newColor = changes.customColor.newValue;
+      if (newColor) {
+        generateCustomPalette(newColor);
+        applyPalette("custom");
+      }
+    }
+    
+    if (changes.theme) {
+      const newTheme = changes.theme.newValue;
+      if (newTheme) {
+        applyTheme(newTheme);
+        // Re-apply palette to update colors for new theme
+        applyPalette(currentPaletteId);
+      }
+    }
+  }
+});
 
 elements.addTaskBtn.addEventListener("click", addTask);
 elements.newTaskInput.addEventListener("keypress", (e) => {
