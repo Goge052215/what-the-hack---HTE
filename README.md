@@ -230,4 +230,4 @@ node app.js
 
 ---
 
-> **Focus Tutor** — Built at the RevisionDojo × MiniMax Hackathon by Team What The Hack.
+> **Focus Tutor** — Built at the Hack The East Hackathon by Team What The Hack.
