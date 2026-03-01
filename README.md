@@ -2,7 +2,8 @@
 
 > **Team What The Hack** · Buenaventura Irish Aves · Chen Xinyu · Guo Yihan · Huang Xu · Long Enjun
 >
-> Built at [RevisionDojo × MiniMax Hackathon 2025]
+> Built at Hack The East 2026
+> **Team ID** HTE-TEAM-19S0E4B2
 
 ---
 
